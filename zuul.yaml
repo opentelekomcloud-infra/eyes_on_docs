@@ -1,0 +1,34 @@
+---
+
+- job:
+    name: grafana-docs-monitoring-build-image
+    parent: otc-build-container-image
+    description: Build grafana-docs-monitoring container image
+    provides: grafana-docs-monitoring-image
+    vars: &gdm_image_vars
+      container_images:
+        - context: .
+          registry: quay.io
+          repository: opentelekomcloud/grafana-docs-monitoring
+          tags:
+            &imagetag "{{ zuul.tag is defined | ternary([zuul.get('tag', '').split('.')[0], '.'.join(zuul.get('tag', '').split('.')[:2]), zuul.get('tag', '')], ['latest']) }}"
+
+- job:
+    name: grafana-docs-monitoring-upload-image
+    parent: otcinfra-upload-container-images
+    vars: &gdm_image_vars
+
+- project:
+    merge-mode: squash-merge
+    default-branch: main
+    vars:
+      node_version: 18
+    check:
+      jobs:
+        - grafana-docs-monitoring-build-image
+    gate:
+      jobs:
+        - grafana-docs-monitoring-upload-image
+    release:
+      jobs:
+        - grafana-docs-monitoring-upload-image
