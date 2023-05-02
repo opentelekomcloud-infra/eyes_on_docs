@@ -16,7 +16,7 @@
 - job:
     name: grafana-docs-monitoring-upload-image
     parent: otcinfra-upload-container-images
-    vars: &gdm_image_vars
+    vars: *gdm_image_vars
 
 - project:
     merge-mode: squash-merge
