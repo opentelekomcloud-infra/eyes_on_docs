@@ -1,47 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_DOCKER-POSTGRESQL",
-      "label": "Docker-PostgreSQL",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "postgres",
-      "pluginName": "PostgreSQL"
-    }
-  ],
-  "__elements": {},
-  "__requires": [
-    {
-      "type": "panel",
-      "id": "barchart",
-      "name": "Bar chart",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "gauge",
-      "name": "Gauge",
-      "version": ""
-    },
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "9.5.1"
-    },
-    {
-      "type": "datasource",
-      "id": "postgres",
-      "name": "PostgreSQL",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -67,14 +24,14 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 2,
-  "id": null,
+  "id": 7,
   "links": [],
   "liveNow": false,
   "panels": [
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_DOCKER-POSTGRESQL}"
+        "uid": "Gtb6avfVk"
       },
       "fieldConfig": {
         "defaults": {
@@ -131,7 +88,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_DOCKER-POSTGRESQL}"
+            "uid": "Gtb6avfVk"
           },
           "editorMode": "code",
           "format": "table",
@@ -165,7 +122,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_DOCKER-POSTGRESQL}"
+        "uid": "Gtb6avfVk"
       },
       "fieldConfig": {
         "defaults": {
@@ -427,7 +384,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_DOCKER-POSTGRESQL}"
+            "uid": "Gtb6avfVk"
           },
           "editorMode": "code",
           "format": "table",
@@ -461,7 +418,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_DOCKER-POSTGRESQL}"
+        "uid": "Gtb6avfVk"
       },
       "fieldConfig": {
         "defaults": {
@@ -515,7 +472,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_DOCKER-POSTGRESQL}"
+            "uid": "Gtb6avfVk"
           },
           "editorMode": "code",
           "format": "table",
@@ -555,7 +512,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_DOCKER-POSTGRESQL}"
+        "uid": "Gtb6avfVk"
       },
       "fieldConfig": {
         "defaults": {
@@ -673,7 +630,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_DOCKER-POSTGRESQL}"
+            "uid": "Gtb6avfVk"
           },
           "editorMode": "code",
           "format": "table",
@@ -797,7 +754,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_DOCKER-POSTGRESQL}"
+        "uid": "Gtb6avfVk"
       },
       "fieldConfig": {
         "defaults": {
@@ -971,7 +928,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_DOCKER-POSTGRESQL}"
+            "uid": "Gtb6avfVk"
           },
           "editorMode": "code",
           "format": "table",
@@ -1010,7 +967,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_DOCKER-POSTGRESQL}"
+        "uid": "Gtb6avfVk"
       },
       "fieldConfig": {
         "defaults": {
@@ -1151,7 +1108,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "${DS_DOCKER-POSTGRESQL}"
+            "uid": "Gtb6avfVk"
           },
           "editorMode": "code",
           "format": "table",
@@ -1197,10 +1154,18 @@
   "templating": {
     "list": [
       {
-        "current": {},
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
         "datasource": {
           "type": "postgres",
-          "uid": "${DS_DOCKER-POSTGRESQL}"
+          "uid": "Gtb6avfVk"
         },
         "definition": "SELECT DISTINCT \"Squad\"\nFROM open_prs\nORDER BY \"Squad\";",
         "hide": 0,
