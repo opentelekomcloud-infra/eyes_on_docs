@@ -1,0 +1,701 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_DOCKER-POSTGRESQL",
+      "label": "Docker-PostgreSQL",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "postgres",
+      "pluginName": "PostgreSQL"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "panel",
+      "id": "barchart",
+      "name": "Bar chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "gauge",
+      "name": "Gauge",
+      "version": ""
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "9.5.2"
+    },
+    {
+      "type": "datasource",
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_DOCKER-POSTGRESQL}"
+      },
+      "description": "Please consider that last commit is matches for api-ref and  umn docs",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [
+            {
+              "options": {
+                "from": 0,
+                "result": {
+                  "color": "light-green",
+                  "index": 0
+                },
+                "to": 300
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 301,
+                "result": {
+                  "color": "light-yellow",
+                  "index": 1
+                },
+                "to": 365
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 365,
+                "result": {
+                  "color": "light-red",
+                  "index": 2
+                },
+                "to": 666
+              },
+              "type": "range"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 20,
+        "w": 7,
+        "x": 0,
+        "y": 0
+      },
+      "id": 5,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.43,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
+        "text": {
+          "valueSize": 1
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "9.5.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_DOCKER-POSTGRESQL}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT \"Service Name\", MAX(\"Days passed\") AS max_days_passed\r\nFROM last_update_commit\r\nGROUP BY \"Service Name\"\r\nORDER BY max_days_passed DESC;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [
+                  {
+                    "name": "*",
+                    "type": "functionParameter"
+                  }
+                ],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
+          "table": "open_prs"
+        }
+      ],
+      "title": "Days Since Last Release by Services",
+      "transformations": [],
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_DOCKER-POSTGRESQL}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#fa009c",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 7,
+        "x": 7,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "9.5.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_DOCKER-POSTGRESQL}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT id FROM last_update_commit WHERE \"Doc Type\" IN ($doctype_commit) AND \"Squad\" IN ($squad_commit)",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
+          "table": "last_update_commit"
+        }
+      ],
+      "title": "Total Count of Docs by Type",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_DOCKER-POSTGRESQL}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 38,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [
+            {
+              "options": {
+                "from": 0,
+                "result": {
+                  "color": "#ffe0f2",
+                  "index": 0
+                },
+                "to": 7
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 8,
+                "result": {
+                  "color": "#ffafde",
+                  "index": 1
+                },
+                "to": 14
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 15,
+                "result": {
+                  "color": "#ff8ccf",
+                  "index": 2
+                },
+                "to": 21
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 22,
+                "result": {
+                  "color": "#fb43ae",
+                  "index": 3
+                },
+                "to": 31
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 32,
+                "result": {
+                  "color": "#ff21a3",
+                  "index": 4
+                },
+                "to": 365
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 366,
+                "result": {
+                  "color": "#930053",
+                  "index": 5
+                },
+                "to": 666
+              },
+              "type": "range"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 14,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.94,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "asc"
+        },
+        "xField": "duration_range",
+        "xTickLabelRotation": -30,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "9.4.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_DOCKER-POSTGRESQL}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT duration_range, COUNT(*) as commit_count\r\nFROM (\r\n    SELECT\r\n        CASE\r\n            WHEN \"Days passed\"::numeric BETWEEN 0 AND 7 THEN '0-7 days'\r\n            WHEN \"Days passed\"::numeric BETWEEN 8 AND 14 THEN '8-14 days'\r\n            WHEN \"Days passed\"::numeric BETWEEN 15 AND 21 THEN '15-21 days'\r\n            WHEN \"Days passed\"::numeric BETWEEN 22 AND 31 THEN '22-31 days'\r\n            WHEN \"Days passed\"::numeric BETWEEN 32 AND 365 THEN '32-365 days'\r\n            ELSE '366-666 days'\r\n        END AS duration_range\r\n    FROM last_update_commit\r\n    WHERE \"Doc Type\" IN ($doctype_commit) AND \"Squad\" IN ($squad_commit)\r\n) as sub\r\nGROUP BY duration_range\r\nORDER BY \r\n    CASE \r\n        WHEN duration_range = '0-7 days' THEN 1\r\n        WHEN duration_range = '8-14 days' THEN 2\r\n        WHEN duration_range = '15-21 days' THEN 3\r\n        WHEN duration_range = '22-31 days' THEN 4\r\n        WHEN duration_range = '32-365 days' THEN 5\r\n        ELSE 6\r\n    END;\r\n",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [
+                  {
+                    "name": "*",
+                    "type": "functionParameter"
+                  }
+                ],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
+          "table": "open_prs"
+        }
+      ],
+      "title": "Days Since Last Release Total Chart",
+      "transformations": [],
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_DOCKER-POSTGRESQL}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "mode": "gradient",
+              "type": "color-background"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "",
+              "url": "${__data.fields[\"Commit URL\"]}"
+            }
+          ],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#fd97d2",
+                "value": null
+              },
+              {
+                "color": "#c9fc97",
+                "value": 300
+              },
+              {
+                "color": "#fcee97",
+                "value": 365
+              },
+              {
+                "color": "#b72323",
+                "value": 666
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "id"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Days passed"
+            },
+            "properties": [
+              {
+                "id": "color"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 17,
+        "x": 7,
+        "y": 8
+      },
+      "id": 1,
+      "links": [],
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": [],
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Days passed"
+          }
+        ]
+      },
+      "pluginVersion": "9.5.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_DOCKER-POSTGRESQL}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT \"Doc Type\", \"Service Name\", \"Squad\", \"Last commit at\", \"Days passed\", \"Commit URL\" FROM \"last_update_commit\" WHERE \"Squad\" IN ($squad_commit) AND \"Doc Type\" IN ($doctype_commit) ORDER BY \"Days passed\"::numeric $duration_commit;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
+          "table": "last_update_commit"
+        }
+      ],
+      "title": "Documents Last Release: Detailed",
+      "type": "table"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "postgres",
+          "uid": "${DS_DOCKER-POSTGRESQL}"
+        },
+        "definition": "SELECT DISTINCT \"Squad\"\nFROM last_update_commit\nORDER BY \"Squad\";",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Squad",
+        "multi": true,
+        "name": "squad_commit",
+        "options": [],
+        "query": "SELECT DISTINCT \"Squad\"\nFROM last_update_commit\nORDER BY \"Squad\";",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "postgres",
+          "uid": "${DS_DOCKER-POSTGRESQL}"
+        },
+        "definition": "SELECT \"Doc Type\"\nFROM last_update_commit\nORDER BY \"Doc Type\";",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Doc Type",
+        "multi": true,
+        "name": "doctype_commit",
+        "options": [],
+        "query": "SELECT \"Doc Type\"\nFROM last_update_commit\nORDER BY \"Doc Type\";",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "ASC",
+          "value": "ASC"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Duration",
+        "multi": false,
+        "name": "duration_commit",
+        "options": [
+          {
+            "selected": true,
+            "text": "ASC",
+            "value": "ASC"
+          },
+          {
+            "selected": false,
+            "text": "DESC",
+            "value": "DESC"
+          }
+        ],
+        "query": "ASC,DESC",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Last Docs Commit",
+  "uid": "c67f0f4b-b31c-4433-b530-a18896470d49",
+  "version": 30,
+  "weekStart": ""
+}

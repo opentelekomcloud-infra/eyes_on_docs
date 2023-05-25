@@ -41,12 +41,13 @@ def create_open_issues_table(conn, cur):
         "Service Name" VARCHAR(255),
         "Squad" VARCHAR(255),
         "Issue Number" INT,
-        "Issue URL" VARCHAR(255),
+        "Issue Title" VARCHAR(255),
         "Created by" VARCHAR(255),
         "Created at" TIMESTAMP,
         "Duration" INT,
         "Comments" INT,
-        "Assignees" TEXT
+        "Assignees" TEXT,
+        "Issue URL" VARCHAR(255)
         );'''
     )
     conn.commit()
@@ -91,6 +92,7 @@ def get_issues_table(gitea_issues, github_issues, cur, conn):
         service_name = tea['repository']['name']
         squad = ""
         number = tea['number']
+        title = tea['title']
         url = tea['html_url']
         if "pulls" in url:
             continue
@@ -110,8 +112,8 @@ def get_issues_table(gitea_issues, github_issues, cur, conn):
             assignees = ', '.join([assignee['login'] for assignee in tea['assignees']])
         else:
             assignees = ''
-        cur.execute('INSERT INTO open_issues ("Environment", "Service Name", "Squad", "Issue Number", "Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                    (environment, service_name, squad, number, url, user, created_at, duration_days, comments, assignees))
+        cur.execute('INSERT INTO open_issues ("Environment", "Service Name", "Squad", "Issue Number", "Issue Title", "Created by", "Created at", "Duration", "Comments", "Assignees", "Issue URL") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                    (environment, service_name, squad, number, title, user, created_at, duration_days, comments, assignees, url))
         conn.commit()
 
     service_pattern = re.compile(r"(?P<service_name>(?<=\/opentelekomcloud-docs\/)([^\/]+)(?=\/))")
@@ -126,6 +128,7 @@ def get_issues_table(gitea_issues, github_issues, cur, conn):
                 service_name = service_match.group("service_name").strip()
                 squad = ""
                 number = hub['number']
+                title = hub['title']
                 url = hub['html_url']
                 user = hub['user']['login']
                 created_at = datetime.strptime(hub['created_at'], '%Y-%m-%dT%H:%M:%SZ')
@@ -135,8 +138,8 @@ def get_issues_table(gitea_issues, github_issues, cur, conn):
                 comments = hub['comments']
                 assignees = ', '.join([assignee['login'] for assignee in hub['assignees']])
 
-                cur.execute('INSERT INTO open_issues ("Environment", "Service Name", "Squad", "Issue Number", "Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                            (environment, service_name, squad, number, url, user, created_at, duration_days, comments, assignees))
+                cur.execute('INSERT INTO open_issues ("Environment", "Service Name", "Squad", "Issue Number", "Issue Title", "Created by", "Created at", "Duration", "Comments", "Assignees", "Issue URL") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                            (environment, service_name, squad, number, title, user, created_at, duration_days, comments, assignees, url))
                 conn.commit()
 
 
