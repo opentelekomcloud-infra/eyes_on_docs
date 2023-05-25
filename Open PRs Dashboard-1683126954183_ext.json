@@ -1,4 +1,47 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_DOCKER-POSTGRESQL",
+      "label": "Docker-PostgreSQL",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "postgres",
+      "pluginName": "PostgreSQL"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "panel",
+      "id": "barchart",
+      "name": "Bar chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "gauge",
+      "name": "Gauge",
+      "version": ""
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "9.5.1"
+    },
+    {
+      "type": "datasource",
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -23,168 +66,41 @@
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
-  "id": 9,
+  "graphTooltip": 2,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
     {
       "datasource": {
         "type": "postgres",
-        "uid": "Gtb6avfVk"
+        "uid": "${DS_DOCKER-POSTGRESQL}"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "blue",
             "mode": "thresholds"
           },
           "mappings": [],
-          "noValue": "No issues",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "super-light-blue",
-                "value": null
-              },
-              {
-                "color": "blue",
-                "value": 33
-              },
-              {
-                "color": "dark-blue",
-                "value": 66
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 0
-      },
-      "id": 7,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "count"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "9.5.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "Gtb6avfVk"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT id FROM open_issues WHERE \"Environment\" = 'Gitea' AND \"Squad\" IN ($squad_issues) AND \"Environment\" IN ($env_issues)",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [
-                  {
-                    "name": "\"Environment\"",
-                    "type": "functionParameter"
-                  }
-                ],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50,
-            "whereJsonTree": {
-              "children1": [
-                {
-                  "id": "a899a8b8-0123-4456-b89a-b18731a91d6c",
-                  "properties": {
-                    "field": "\"Environment\"",
-                    "operator": "equal",
-                    "value": [
-                      "Gitea"
-                    ],
-                    "valueSrc": [
-                      "value"
-                    ],
-                    "valueType": [
-                      "text"
-                    ]
-                  },
-                  "type": "rule"
-                }
-              ],
-              "id": "a9a8b8a8-89ab-4cde-b012-3187319ac08e",
-              "type": "group"
-            },
-            "whereString": "\"Environment\" = 'Gitea'"
-          },
-          "table": "open_issues"
-        }
-      ],
-      "title": "Gitea count of issues",
-      "transformations": [],
-      "transparent": true,
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "Gtb6avfVk"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "light-yellow",
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "No issues",
+          "noValue": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "super-light-blue",
+                "color": "super-light-orange",
                 "value": null
               },
               {
-                "color": "blue",
-                "value": 30
+                "color": "orange",
+                "value": 2
               },
               {
-                "color": "dark-blue",
-                "value": 60
+                "color": "red",
+                "value": 5
               },
               {
-                "color": "#63108cfa",
-                "value": 90
-              },
-              {
-                "color": "#c146ffc2",
-                "value": 130
-              },
-              {
-                "color": "light-purple",
-                "value": 170
+                "color": "#c4162ab3",
+                "value": 7
               }
             ]
           }
@@ -193,11 +109,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 8,
+        "w": 5,
+        "x": 0,
         "y": 0
       },
-      "id": 5,
+      "id": 4,
       "options": {
         "orientation": "auto",
         "reduceOptions": {
@@ -215,30 +131,23 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "Gtb6avfVk"
+            "uid": "${DS_DOCKER-POSTGRESQL}"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT id FROM open_issues WHERE \"Squad\" IN ($squad_issues) AND \"Environment\" IN ($env_issues)",
+          "rawSql": "SELECT id FROM orphaned_prs WHERE \"Squad\" IN ($squad_filter); ",
           "refId": "A",
           "sql": {
             "columns": [
               {
-                "name": "COUNT",
-                "parameters": [
-                  {
-                    "name": "\"Environment\"",
-                    "type": "functionParameter"
-                  }
-                ],
+                "parameters": [],
                 "type": "function"
               }
             ],
             "groupBy": [
               {
                 "property": {
-                  "name": "\"Environment\"",
                   "type": "string"
                 },
                 "type": "groupBy"
@@ -246,142 +155,22 @@
             ],
             "limit": 50
           },
-          "table": "open_issues"
+          "table": "orphaned_prs"
         }
       ],
-      "title": "Total count of issues",
-      "transformations": [],
+      "title": "Total Count of Orphaned PRs",
       "transparent": true,
       "type": "gauge"
     },
     {
       "datasource": {
         "type": "postgres",
-        "uid": "Gtb6avfVk"
+        "uid": "${DS_DOCKER-POSTGRESQL}"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "blue",
             "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "No issues",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "super-light-purple",
-                "value": null
-              },
-              {
-                "color": "purple",
-                "value": 33
-              },
-              {
-                "color": "dark-purple",
-                "value": 66
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 0
-      },
-      "id": 15,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "count"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "9.5.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "Gtb6avfVk"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT id FROM open_issues WHERE \"Environment\" = 'Github' AND \"Squad\" IN ($squad_issues) AND \"Environment\" IN ($env_issues)",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [
-                  {
-                    "name": "\"Environment\"",
-                    "type": "functionParameter"
-                  }
-                ],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50,
-            "whereJsonTree": {
-              "children1": [
-                {
-                  "id": "a899a8b8-0123-4456-b89a-b18731a91d6c",
-                  "properties": {
-                    "field": "\"Environment\"",
-                    "operator": "equal",
-                    "value": [
-                      "Gitea"
-                    ],
-                    "valueSrc": [
-                      "value"
-                    ],
-                    "valueType": [
-                      "text"
-                    ]
-                  },
-                  "type": "rule"
-                }
-              ],
-              "id": "a9a8b8a8-89ab-4cde-b012-3187319ac08e",
-              "type": "group"
-            },
-            "whereString": "\"Environment\" = 'Gitea'"
-          },
-          "table": "open_issues"
-        }
-      ],
-      "title": "Github count of issues",
-      "transformations": [],
-      "transparent": true,
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "Gtb6avfVk"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "#d8e7ff",
-            "mode": "fixed"
           },
           "custom": {
             "align": "auto",
@@ -396,33 +185,17 @@
             {
               "targetBlank": true,
               "title": "",
-              "url": "${__data.fields[\"Issue URL\"]}"
+              "url": "${__data.fields[\"Auto PR URL\"]}"
             }
           ],
           "mappings": [],
-          "noValue": "No issues",
+          "noValue": "No orphaned PRs were found, congratulations!",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "super-light-green",
+                "color": "#b5dcb0",
                 "value": null
-              },
-              {
-                "color": "green",
-                "value": 7
-              },
-              {
-                "color": "yellow",
-                "value": 14
-              },
-              {
-                "color": "orange",
-                "value": 22
-              },
-              {
-                "color": "dark-red",
-                "value": 31
               }
             ]
           }
@@ -431,7 +204,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Assignees"
+              "options": "If merged"
             },
             "properties": [
               {
@@ -439,10 +212,130 @@
                 "value": [
                   {
                     "options": {
-                      "match": "empty",
+                      "false": {
+                        "color": "#ffa5a5",
+                        "index": 0
+                      },
+                      "true": {
+                        "color": "#c7f2c2eb",
+                        "index": 1
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 103
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Parent PR merged"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "false": {
+                        "color": "#ffc0c7",
+                        "index": 0
+                      },
+                      "true": {
+                        "color": "super-light-green",
+                        "index": 1
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Auto PR State"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 123
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "closed": {
+                        "color": "#ffa4af",
+                        "index": 0
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Parent PR Number"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 159
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Auto PR URL"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 141
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Github PR Merged"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "false": {
+                        "color": "#ffadad",
+                        "index": 0
+                      },
+                      "true": {
+                        "color": "super-light-green",
+                        "index": 1
+                      }
+                    },
+                    "type": "value"
+                  },
+                  {
+                    "options": {
+                      "match": "null",
                       "result": {
-                        "index": 0,
-                        "text": "No assignees"
+                        "color": "#fffbfb",
+                        "index": 2,
+                        "text": "absent"
                       }
                     },
                     "type": "special"
@@ -454,7 +347,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Duration"
+              "options": "Github PR State"
             },
             "properties": [
               {
@@ -462,58 +355,45 @@
                 "value": [
                   {
                     "options": {
-                      "from": 0,
-                      "result": {
-                        "color": "#c8f2c2",
-                        "index": 0
-                      },
-                      "to": 7
-                    },
-                    "type": "range"
-                  },
-                  {
-                    "options": {
-                      "from": 8,
-                      "result": {
-                        "color": "green",
+                      "closed": {
+                        "color": "#ffbac2",
                         "index": 1
-                      },
-                      "to": 14
+                      }
                     },
-                    "type": "range"
+                    "type": "value"
                   },
                   {
                     "options": {
-                      "from": 15,
+                      "match": "null",
                       "result": {
-                        "color": "yellow",
-                        "index": 2
-                      },
-                      "to": 22
+                        "color": "#ffeeee",
+                        "index": 0,
+                        "text": "absent"
+                      }
                     },
-                    "type": "range"
-                  },
+                    "type": "special"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Parent PR State"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
                   {
                     "options": {
-                      "from": 23,
-                      "result": {
-                        "color": "orange",
-                        "index": 3
-                      },
-                      "to": 31
+                      "closed": {
+                        "color": "super-light-red",
+                        "index": 0
+                      }
                     },
-                    "type": "range"
-                  },
-                  {
-                    "options": {
-                      "from": 32,
-                      "result": {
-                        "color": "dark-red",
-                        "index": 4
-                      },
-                      "to": 666
-                    },
-                    "type": "range"
+                    "type": "value"
                   }
                 ]
               }
@@ -522,12 +402,12 @@
         ]
       },
       "gridPos": {
-        "h": 15,
-        "w": 24,
-        "x": 0,
-        "y": 8
+        "h": 9,
+        "w": 19,
+        "x": 5,
+        "y": 0
       },
-      "id": 1,
+      "id": 5,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -547,19 +427,266 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "Gtb6avfVk"
+            "uid": "${DS_DOCKER-POSTGRESQL}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "hide": false,
+          "rawQuery": true,
+          "rawSql": "SELECT \"Parent PR Number\", \"Name Service\", \"Squad\", \"Auto PR URL\", \"Auto PR State\", \"If merged\", \"Parent PR State\", \"Parent PR merged\", \"Github PR State\", \"Github PR Merged\" FROM orphaned_prs WHERE \"Squad\" IN ($squad_filter);",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Open Child PRs Details Info",
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_DOCKER-POSTGRESQL}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-green",
+                "value": null
+              },
+              {
+                "color": "super-light-yellow",
+                "value": 20
+              },
+              {
+                "color": "super-light-orange",
+                "value": 40
+              },
+              {
+                "color": "orange",
+                "value": 60
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 5,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "9.5.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_DOCKER-POSTGRESQL}"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT * FROM open_issues WHERE \"Squad\" IN ($squad_issues) AND \"Environment\" IN ($env_issues) ORDER BY \"Duration\"::numeric $sort_duration;",
+          "rawSql": "SELECT id FROM \"open_prs\" WHERE \"Squad\" IN ($squad_filter);",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "name": "COUNT",
+                "parameters": [
+                  {
+                    "name": "\"Parent PR Number\"",
+                    "type": "functionParameter"
+                  }
+                ],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
+          "table": "open_prs"
+        }
+      ],
+      "title": "Total Count of Child PRs",
+      "transparent": true,
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_DOCKER-POSTGRESQL}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "mode": "gradient",
+              "type": "color-background"
+            },
+            "filterable": true,
+            "inspect": true
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "",
+              "url": "${__data.fields[\"Auto PR URL\"]}"
+            }
+          ],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ebffe9fa",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "If merged"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "false": {
+                        "color": "#ffdee2",
+                        "index": 0
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Parent PR merged"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "false": {
+                        "color": "#ffdde1",
+                        "index": 0
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "id"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 19,
+        "x": 5,
+        "y": 9
+      },
+      "id": 1,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "9.5.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_DOCKER-POSTGRESQL}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "key": "Q-d6c96520-39f4-4c61-86ea-ac8a973d2c88-0",
+          "rawQuery": true,
+          "rawSql": "SELECT * FROM \"open_prs\" WHERE \"Squad\" IN ($squad_filter);\r\n",
           "refId": "A",
           "sql": {
             "columns": [
               {
                 "parameters": [
                   {
-                    "name": "\"Environment\"",
+                    "name": "\"Parent PR Number\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -568,7 +695,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Service Name\"",
+                    "name": "\"Name Service\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -586,7 +713,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Issue Number\"",
+                    "name": "\"Auto PR URL\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -595,7 +722,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Issue URL\"",
+                    "name": "\"Auto PR State\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -604,7 +731,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Created by\"",
+                    "name": "\"If merged\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -613,7 +740,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Created at\"",
+                    "name": "\"Parent PR State\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -622,25 +749,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Duration\"",
-                    "type": "functionParameter"
-                  }
-                ],
-                "type": "function"
-              },
-              {
-                "parameters": [
-                  {
-                    "name": "\"Comments\"",
-                    "type": "functionParameter"
-                  }
-                ],
-                "type": "function"
-              },
-              {
-                "parameters": [
-                  {
-                    "name": "\"Assignees\"",
+                    "name": "\"Parent PR merged\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -650,6 +759,14 @@
             "groupBy": [
               {
                 "property": {
+                  "name": "\"Name Service\"",
+                  "type": "string"
+                },
+                "type": "groupBy"
+              },
+              {
+                "property": {
+                  "name": "\"Squad\"",
                   "type": "string"
                 },
                 "type": "groupBy"
@@ -657,16 +774,30 @@
             ],
             "limit": 50
           },
-          "table": "open_issues"
+          "table": "open_prs"
         }
       ],
-      "title": "Open Issues: Detailed",
+      "title": "Open Child PRs Details Info",
+      "transparent": true,
       "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 13,
+      "panels": [],
+      "title": "Diagrams",
+      "type": "row"
     },
     {
       "datasource": {
         "type": "postgres",
-        "uid": "Gtb6avfVk"
+        "uid": "${DS_DOCKER-POSTGRESQL}"
       },
       "fieldConfig": {
         "defaults": {
@@ -698,7 +829,7 @@
               "options": {
                 "from": 1,
                 "result": {
-                  "color": "super-light-green",
+                  "color": "dark-green",
                   "index": 0
                 },
                 "to": 2
@@ -709,7 +840,7 @@
               "options": {
                 "from": 3,
                 "result": {
-                  "color": "light-green",
+                  "color": "green",
                   "index": 1
                 },
                 "to": 5
@@ -720,7 +851,7 @@
               "options": {
                 "from": 6,
                 "result": {
-                  "color": "semi-dark-green",
+                  "color": "super-light-yellow",
                   "index": 2
                 },
                 "to": 7
@@ -731,7 +862,7 @@
               "options": {
                 "from": 8,
                 "result": {
-                  "color": "light-blue",
+                  "color": "light-yellow",
                   "index": 3
                 },
                 "to": 9
@@ -742,7 +873,7 @@
               "options": {
                 "from": 10,
                 "result": {
-                  "color": "blue",
+                  "color": "light-orange",
                   "index": 4
                 },
                 "to": 12
@@ -753,7 +884,7 @@
               "options": {
                 "from": 13,
                 "result": {
-                  "color": "dark-blue",
+                  "color": "dark-orange",
                   "index": 5
                 },
                 "to": 15
@@ -764,7 +895,7 @@
               "options": {
                 "from": 16,
                 "result": {
-                  "color": "light-purple",
+                  "color": "light-red",
                   "index": 6
                 },
                 "to": 20
@@ -775,7 +906,7 @@
               "options": {
                 "from": 21,
                 "result": {
-                  "color": "purple",
+                  "color": "red",
                   "index": 7
                 },
                 "to": 25
@@ -786,7 +917,7 @@
               "options": {
                 "from": 26,
                 "result": {
-                  "color": "dark-purple",
+                  "color": "dark-red",
                   "index": 8
                 },
                 "to": 666
@@ -798,7 +929,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -807,12 +939,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 18,
+        "h": 16,
         "w": 12,
         "x": 0,
-        "y": 23
+        "y": 18
       },
-      "id": 9,
+      "id": 11,
       "options": {
         "barRadius": 0,
         "barWidth": 0.97,
@@ -839,12 +971,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "Gtb6avfVk"
+            "uid": "${DS_DOCKER-POSTGRESQL}"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n    CASE\r\n        WHEN \"Duration\"::numeric BETWEEN 0 AND 7 THEN '0-7 days'\r\n        WHEN \"Duration\"::numeric BETWEEN 8 AND 14 THEN '8-14 days'\r\n        WHEN \"Duration\"::numeric BETWEEN 15 AND 21 THEN '15-21 days'\r\n        WHEN \"Duration\"::numeric BETWEEN 22 AND 31 THEN '22-31 days'\r\n        ELSE '32-666 days'\r\n    END AS duration_range,\r\n    COUNT(*) as issue_count\r\nFROM open_issues\r\nGROUP BY duration_range\r\nORDER BY duration_range;\r\n",
+          "rawSql": "SELECT \"Squad\", COUNT(*) FROM \"open_prs\" GROUP BY \"Squad\"\r\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -871,19 +1003,19 @@
           "table": "open_prs"
         }
       ],
-      "title": "Open Issues by Duration",
+      "title": "Open PRs by Squads",
       "transformations": [],
       "type": "barchart"
     },
     {
       "datasource": {
         "type": "postgres",
-        "uid": "Gtb6avfVk"
+        "uid": "${DS_DOCKER-POSTGRESQL}"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -910,7 +1042,7 @@
               "options": {
                 "from": 1,
                 "result": {
-                  "color": "#c7f2c2a8",
+                  "color": "super-light-green",
                   "index": 0
                 },
                 "to": 2
@@ -921,7 +1053,7 @@
               "options": {
                 "from": 3,
                 "result": {
-                  "color": "light-blue",
+                  "color": "green",
                   "index": 1
                 },
                 "to": 4
@@ -932,7 +1064,7 @@
               "options": {
                 "from": 5,
                 "result": {
-                  "color": "semi-dark-blue",
+                  "color": "light-yellow",
                   "index": 2
                 },
                 "to": 7
@@ -943,7 +1075,7 @@
               "options": {
                 "from": 8,
                 "result": {
-                  "color": "#094db4e6",
+                  "color": "dark-yellow",
                   "index": 3
                 },
                 "to": 10
@@ -954,7 +1086,7 @@
               "options": {
                 "from": 11,
                 "result": {
-                  "color": "purple",
+                  "color": "light-orange",
                   "index": 4
                 },
                 "to": 13
@@ -965,7 +1097,7 @@
               "options": {
                 "from": 13,
                 "result": {
-                  "color": "dark-purple",
+                  "color": "dark-orange",
                   "index": 5
                 },
                 "to": 666
@@ -977,7 +1109,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -986,12 +1119,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 18,
+        "h": 16,
         "w": 12,
         "x": 12,
-        "y": 23
+        "y": 18
       },
-      "id": 11,
+      "id": 9,
       "options": {
         "barRadius": 0,
         "barWidth": 0.55,
@@ -1007,23 +1140,23 @@
         "showValue": "always",
         "stacking": "none",
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         },
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 0
       },
-      "pluginVersion": "9.3.6",
+      "pluginVersion": "9.4.7",
       "targets": [
         {
           "datasource": {
             "type": "postgres",
-            "uid": "Gtb6avfVk"
+            "uid": "${DS_DOCKER-POSTGRESQL}"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \"Service Name\", COUNT(*) FROM \"open_issues\" GROUP BY \"Service Name\"",
+          "rawSql": "SELECT \"Name Service\", COUNT(*) FROM \"open_prs\" GROUP BY \"Name Service\"",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1054,200 +1187,6 @@
       "title": "Open PRs by Services",
       "transformations": [],
       "type": "barchart"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "Gtb6avfVk"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "mappings": [
-            {
-              "options": {
-                "from": 1,
-                "result": {
-                  "color": "super-light-green",
-                  "index": 0
-                },
-                "to": 10
-              },
-              "type": "range"
-            },
-            {
-              "options": {
-                "from": 11,
-                "result": {
-                  "color": "green",
-                  "index": 1
-                },
-                "to": 15
-              },
-              "type": "range"
-            },
-            {
-              "options": {
-                "from": 16,
-                "result": {
-                  "color": "super-light-blue",
-                  "index": 2
-                },
-                "to": 20
-              },
-              "type": "range"
-            },
-            {
-              "options": {
-                "from": 21,
-                "result": {
-                  "color": "light-blue",
-                  "index": 3
-                },
-                "to": 30
-              },
-              "type": "range"
-            },
-            {
-              "options": {
-                "from": 31,
-                "result": {
-                  "color": "semi-dark-blue",
-                  "index": 4
-                },
-                "to": 40
-              },
-              "type": "range"
-            },
-            {
-              "options": {
-                "from": 41,
-                "result": {
-                  "color": "#162faab3",
-                  "index": 5
-                },
-                "to": 50
-              },
-              "type": "range"
-            },
-            {
-              "options": {
-                "from": 51,
-                "result": {
-                  "color": "purple",
-                  "index": 6
-                },
-                "to": 60
-              },
-              "type": "range"
-            },
-            {
-              "options": {
-                "from": 61,
-                "result": {
-                  "color": "semi-dark-purple",
-                  "index": 7
-                },
-                "to": 70
-              },
-              "type": "range"
-            },
-            {
-              "options": {
-                "from": 71,
-                "result": {
-                  "color": "#7f1eafc4",
-                  "index": 8
-                },
-                "to": 666
-              },
-              "type": "range"
-            }
-          ],
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 18,
-        "w": 12,
-        "x": 6,
-        "y": 41
-      },
-      "id": 13,
-      "options": {
-        "displayLabels": [
-          "percent"
-        ],
-        "legend": {
-          "displayMode": "list",
-          "placement": "right",
-          "showLegend": true,
-          "values": []
-        },
-        "pieType": "pie",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.4.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "Gtb6avfVk"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT \"Squad\", COUNT(*) FROM \"open_issues\" GROUP BY \"Squad\"\r\n",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [
-                  {
-                    "name": "*",
-                    "type": "functionParameter"
-                  }
-                ],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
-          "table": "open_prs"
-        }
-      ],
-      "title": "Open PRs by Squads",
-      "transformations": [],
-      "transparent": true,
-      "type": "piechart"
     }
   ],
   "refresh": "",
@@ -1258,84 +1197,24 @@
   "templating": {
     "list": [
       {
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": {
           "type": "postgres",
-          "uid": "Gtb6avfVk"
+          "uid": "${DS_DOCKER-POSTGRESQL}"
         },
-        "definition": "SELECT DISTINCT \"Squad\"\nFROM open_issues\nORDER BY \"Squad\";",
+        "definition": "SELECT DISTINCT \"Squad\"\nFROM open_prs\nORDER BY \"Squad\";",
         "hide": 0,
         "includeAll": true,
         "label": "Squad",
         "multi": true,
-        "name": "squad_issues",
+        "name": "squad_filter",
         "options": [],
-        "query": "SELECT DISTINCT \"Squad\"\nFROM open_issues\nORDER BY \"Squad\";",
+        "query": "SELECT DISTINCT \"Squad\"\nFROM open_prs\nORDER BY \"Squad\";",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 0,
+        "sort": 1,
         "type": "query"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": [
-            "Gitea"
-          ],
-          "value": [
-            "Gitea"
-          ]
-        },
-        "datasource": {
-          "type": "postgres",
-          "uid": "Gtb6avfVk"
-        },
-        "definition": "SELECT DISTINCT \"Environment\"\nFROM open_issues\nORDER BY \"Environment\";",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Environment",
-        "multi": true,
-        "name": "env_issues",
-        "options": [],
-        "query": "SELECT DISTINCT \"Environment\"\nFROM open_issues\nORDER BY \"Environment\";",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": "DESC",
-          "value": "DESC"
-        },
-        "hide": 0,
-        "includeAll": false,
-        "label": "Duration",
-        "multi": false,
-        "name": "sort_duration",
-        "options": [
-          {
-            "selected": false,
-            "text": "ASC",
-            "value": "ASC"
-          },
-          {
-            "selected": true,
-            "text": "DESC",
-            "value": "DESC"
-          }
-        ],
-        "query": "ASC,DESC",
-        "queryValue": "",
-        "skipUrlSync": false,
-        "type": "custom"
       }
     ]
   },
@@ -1343,10 +1222,12 @@
     "from": "now-6h",
     "to": "now"
   },
-  "timepicker": {},
+  "timepicker": {
+    "hidden": false
+  },
   "timezone": "",
-  "title": "Open Issues Dashboard",
-  "uid": "I-YJAuBVk",
-  "version": 54,
+  "title": "Open PRs Dashboard",
+  "uid": "4vLGLDB4z",
+  "version": 33,
   "weekStart": ""
 }

@@ -1,4 +1,53 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_GDM",
+      "label": "gdm",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "postgres",
+      "pluginName": "PostgreSQL"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "panel",
+      "id": "barchart",
+      "name": "Bar chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "gauge",
+      "name": "Gauge",
+      "version": ""
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "9.3.2"
+    },
+    {
+      "type": "panel",
+      "id": "piechart",
+      "name": "Pie chart",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -23,41 +72,38 @@
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 2,
-  "id": 7,
+  "graphTooltip": 0,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
     {
       "datasource": {
         "type": "postgres",
-        "uid": "Gtb6avfVk"
+        "uid": "${DS_GDM}"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "blue",
             "mode": "thresholds"
           },
           "mappings": [],
-          "noValue": "0",
+          "noValue": "No issues",
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
-                "color": "super-light-orange",
+                "color": "super-light-blue",
                 "value": null
               },
               {
-                "color": "orange",
-                "value": 2
+                "color": "blue",
+                "value": 33
               },
               {
-                "color": "red",
-                "value": 5
-              },
-              {
-                "color": "#c4162ab3",
-                "value": 7
+                "color": "dark-blue",
+                "value": 66
               }
             ]
           }
@@ -66,11 +112,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 5,
+        "w": 8,
         "x": 0,
         "y": 0
       },
-      "id": 4,
+      "id": 7,
       "options": {
         "orientation": "auto",
         "reduceOptions": {
@@ -83,22 +129,27 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.5.1",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
             "type": "postgres",
-            "uid": "Gtb6avfVk"
+            "uid": "${DS_GDM}"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT id FROM orphaned_prs WHERE \"Squad\" IN ($squad_filter); ",
+          "rawSql": "SELECT id FROM open_issues WHERE \"Environment\" = 'Gitea' AND \"Squad\" IN ($squad_issues) AND \"Environment\" IN ($env_issues)",
           "refId": "A",
           "sql": {
             "columns": [
               {
-                "parameters": [],
+                "parameters": [
+                  {
+                    "name": "\"Environment\"",
+                    "type": "functionParameter"
+                  }
+                ],
                 "type": "function"
               }
             ],
@@ -110,31 +161,280 @@
                 "type": "groupBy"
               }
             ],
-            "limit": 50
+            "limit": 50,
+            "whereJsonTree": {
+              "children1": [
+                {
+                  "id": "a899a8b8-0123-4456-b89a-b18731a91d6c",
+                  "properties": {
+                    "field": "\"Environment\"",
+                    "operator": "equal",
+                    "value": [
+                      "Gitea"
+                    ],
+                    "valueSrc": [
+                      "value"
+                    ],
+                    "valueType": [
+                      "text"
+                    ]
+                  },
+                  "type": "rule"
+                }
+              ],
+              "id": "a9a8b8a8-89ab-4cde-b012-3187319ac08e",
+              "type": "group"
+            },
+            "whereString": "\"Environment\" = 'Gitea'"
           },
-          "table": "orphaned_prs"
+          "table": "open_issues"
         }
       ],
-      "title": "Total Count of Orphaned PRs",
+      "title": "Gitea count of issues",
+      "transformations": [],
       "transparent": true,
       "type": "gauge"
     },
     {
       "datasource": {
         "type": "postgres",
-        "uid": "Gtb6avfVk"
+        "uid": "${DS_GDM}"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "light-yellow",
             "mode": "thresholds"
+          },
+          "mappings": [],
+          "noValue": "No issues",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-blue",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 30
+              },
+              {
+                "color": "dark-blue",
+                "value": 60
+              },
+              {
+                "color": "#63108cfa",
+                "value": 90
+              },
+              {
+                "color": "#c146ffc2",
+                "value": 130
+              },
+              {
+                "color": "light-purple",
+                "value": 170
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "id": 5,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_GDM}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT id FROM open_issues WHERE \"Squad\" IN ($squad_issues) AND \"Environment\" IN ($env_issues)",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "name": "COUNT",
+                "parameters": [
+                  {
+                    "name": "\"Environment\"",
+                    "type": "functionParameter"
+                  }
+                ],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "name": "\"Environment\"",
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
+          "table": "open_issues"
+        }
+      ],
+      "title": "Total count of issues",
+      "transformations": [],
+      "transparent": true,
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_GDM}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "noValue": "No issues",
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "super-light-purple",
+                "value": null
+              },
+              {
+                "color": "purple",
+                "value": 33
+              },
+              {
+                "color": "dark-purple",
+                "value": 66
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "id": 15,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_GDM}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT id FROM open_issues WHERE \"Environment\" = 'Github' AND \"Squad\" IN ($squad_issues) AND \"Environment\" IN ($env_issues)",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [
+                  {
+                    "name": "\"Environment\"",
+                    "type": "functionParameter"
+                  }
+                ],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50,
+            "whereJsonTree": {
+              "children1": [
+                {
+                  "id": "a899a8b8-0123-4456-b89a-b18731a91d6c",
+                  "properties": {
+                    "field": "\"Environment\"",
+                    "operator": "equal",
+                    "value": [
+                      "Gitea"
+                    ],
+                    "valueSrc": [
+                      "value"
+                    ],
+                    "valueType": [
+                      "text"
+                    ]
+                  },
+                  "type": "rule"
+                }
+              ],
+              "id": "a9a8b8a8-89ab-4cde-b012-3187319ac08e",
+              "type": "group"
+            },
+            "whereString": "\"Environment\" = 'Gitea'"
+          },
+          "table": "open_issues"
+        }
+      ],
+      "title": "Github count of issues",
+      "transformations": [],
+      "transparent": true,
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_GDM}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#d8e7ff",
+            "mode": "fixed"
           },
           "custom": {
             "align": "auto",
-            "cellOptions": {
-              "mode": "gradient",
-              "type": "color-background"
-            },
+            "displayMode": "color-background",
             "filterable": true,
             "inspect": true
           },
@@ -142,17 +442,33 @@
             {
               "targetBlank": true,
               "title": "",
-              "url": "${__data.fields[\"Auto PR URL\"]}"
+              "url": "${__data.fields[\"Issue URL\"]}"
             }
           ],
           "mappings": [],
-          "noValue": "No orphaned PRs were found, congratulations!",
+          "noValue": "No issues",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "#b5dcb0",
+                "color": "super-light-green",
                 "value": null
+              },
+              {
+                "color": "green",
+                "value": 7
+              },
+              {
+                "color": "yellow",
+                "value": 14
+              },
+              {
+                "color": "orange",
+                "value": 22
+              },
+              {
+                "color": "dark-red",
+                "value": 31
               }
             ]
           }
@@ -161,7 +477,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "If merged"
+              "options": "Assignees"
             },
             "properties": [
               {
@@ -169,163 +485,10 @@
                 "value": [
                   {
                     "options": {
-                      "false": {
-                        "color": "#ffa5a5",
-                        "index": 0
-                      },
-                      "true": {
-                        "color": "#c7f2c2eb",
-                        "index": 1
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              },
-              {
-                "id": "custom.width",
-                "value": 103
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Parent PR merged"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "false": {
-                        "color": "#ffc0c7",
-                        "index": 0
-                      },
-                      "true": {
-                        "color": "super-light-green",
-                        "index": 1
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Auto PR State"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 123
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "closed": {
-                        "color": "#ffa4af",
-                        "index": 0
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Parent PR Number"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 159
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Auto PR URL"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 141
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Github PR Merged"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "false": {
-                        "color": "#ffadad",
-                        "index": 0
-                      },
-                      "true": {
-                        "color": "super-light-green",
-                        "index": 1
-                      }
-                    },
-                    "type": "value"
-                  },
-                  {
-                    "options": {
-                      "match": "null",
+                      "match": "empty",
                       "result": {
-                        "color": "#fffbfb",
-                        "index": 2,
-                        "text": "absent"
-                      }
-                    },
-                    "type": "special"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Github PR State"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "closed": {
-                        "color": "#ffbac2",
-                        "index": 1
-                      }
-                    },
-                    "type": "value"
-                  },
-                  {
-                    "options": {
-                      "match": "null",
-                      "result": {
-                        "color": "#ffeeee",
                         "index": 0,
-                        "text": "absent"
+                        "text": "No assignees"
                       }
                     },
                     "type": "special"
@@ -337,7 +500,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Parent PR State"
+              "options": "Duration"
             },
             "properties": [
               {
@@ -345,12 +508,58 @@
                 "value": [
                   {
                     "options": {
-                      "closed": {
-                        "color": "super-light-red",
+                      "from": 0,
+                      "result": {
+                        "color": "#c8f2c2",
                         "index": 0
-                      }
+                      },
+                      "to": 7
                     },
-                    "type": "value"
+                    "type": "range"
+                  },
+                  {
+                    "options": {
+                      "from": 8,
+                      "result": {
+                        "color": "green",
+                        "index": 1
+                      },
+                      "to": 14
+                    },
+                    "type": "range"
+                  },
+                  {
+                    "options": {
+                      "from": 15,
+                      "result": {
+                        "color": "yellow",
+                        "index": 2
+                      },
+                      "to": 22
+                    },
+                    "type": "range"
+                  },
+                  {
+                    "options": {
+                      "from": 23,
+                      "result": {
+                        "color": "orange",
+                        "index": 3
+                      },
+                      "to": 31
+                    },
+                    "type": "range"
+                  },
+                  {
+                    "options": {
+                      "from": 32,
+                      "result": {
+                        "color": "dark-red",
+                        "index": 4
+                      },
+                      "to": 666
+                    },
+                    "type": "range"
                   }
                 ]
               }
@@ -359,12 +568,12 @@
         ]
       },
       "gridPos": {
-        "h": 9,
-        "w": 19,
-        "x": 5,
-        "y": 0
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 8
       },
-      "id": 5,
+      "id": 1,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -379,271 +588,24 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "9.5.1",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
             "type": "postgres",
-            "uid": "Gtb6avfVk"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "hide": false,
-          "rawQuery": true,
-          "rawSql": "SELECT \"Parent PR Number\", \"Name Service\", \"Squad\", \"Auto PR URL\", \"Auto PR State\", \"If merged\", \"Parent PR State\", \"Parent PR merged\", \"Github PR State\", \"Github PR Merged\" FROM orphaned_prs WHERE \"Squad\" IN ($squad_filter);",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Open Child PRs Details Info",
-      "transparent": true,
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "Gtb6avfVk"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "super-light-green",
-                "value": null
-              },
-              {
-                "color": "super-light-yellow",
-                "value": 20
-              },
-              {
-                "color": "super-light-orange",
-                "value": 40
-              },
-              {
-                "color": "orange",
-                "value": 60
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 5,
-        "x": 0,
-        "y": 8
-      },
-      "id": 3,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "count"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "9.5.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "Gtb6avfVk"
+            "uid": "${DS_GDM}"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT id FROM \"open_prs\" WHERE \"Squad\" IN ($squad_filter);",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "name": "COUNT",
-                "parameters": [
-                  {
-                    "name": "\"Parent PR Number\"",
-                    "type": "functionParameter"
-                  }
-                ],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
-          "table": "open_prs"
-        }
-      ],
-      "title": "Total Count of Child PRs",
-      "transparent": true,
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "Gtb6avfVk"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "mode": "gradient",
-              "type": "color-background"
-            },
-            "filterable": true,
-            "inspect": true
-          },
-          "links": [
-            {
-              "targetBlank": true,
-              "title": "",
-              "url": "${__data.fields[\"Auto PR URL\"]}"
-            }
-          ],
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#ebffe9fa",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "If merged"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "false": {
-                        "color": "#ffdee2",
-                        "index": 0
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Parent PR merged"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "false": {
-                        "color": "#ffdde1",
-                        "index": 0
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "id"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 19,
-        "x": 5,
-        "y": 9
-      },
-      "id": 1,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "enablePagination": true,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true
-      },
-      "pluginVersion": "9.5.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "Gtb6avfVk"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "key": "Q-d6c96520-39f4-4c61-86ea-ac8a973d2c88-0",
-          "rawQuery": true,
-          "rawSql": "SELECT * FROM \"open_prs\" WHERE \"Squad\" IN ($squad_filter);\r\n",
+          "rawSql": "SELECT * FROM open_issues WHERE \"Squad\" IN ($squad_issues) AND \"Environment\" IN ($env_issues) ORDER BY \"Duration\"::numeric $sort_duration;",
           "refId": "A",
           "sql": {
             "columns": [
               {
                 "parameters": [
                   {
-                    "name": "\"Parent PR Number\"",
+                    "name": "\"Environment\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -652,7 +614,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Name Service\"",
+                    "name": "\"Service Name\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -670,7 +632,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Auto PR URL\"",
+                    "name": "\"Issue Number\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -679,7 +641,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Auto PR State\"",
+                    "name": "\"Issue URL\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -688,7 +650,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"If merged\"",
+                    "name": "\"Created by\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -697,7 +659,7 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Parent PR State\"",
+                    "name": "\"Created at\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -706,7 +668,25 @@
               {
                 "parameters": [
                   {
-                    "name": "\"Parent PR merged\"",
+                    "name": "\"Duration\"",
+                    "type": "functionParameter"
+                  }
+                ],
+                "type": "function"
+              },
+              {
+                "parameters": [
+                  {
+                    "name": "\"Comments\"",
+                    "type": "functionParameter"
+                  }
+                ],
+                "type": "function"
+              },
+              {
+                "parameters": [
+                  {
+                    "name": "\"Assignees\"",
                     "type": "functionParameter"
                   }
                 ],
@@ -716,14 +696,6 @@
             "groupBy": [
               {
                 "property": {
-                  "name": "\"Name Service\"",
-                  "type": "string"
-                },
-                "type": "groupBy"
-              },
-              {
-                "property": {
-                  "name": "\"Squad\"",
                   "type": "string"
                 },
                 "type": "groupBy"
@@ -731,30 +703,16 @@
             ],
             "limit": 50
           },
-          "table": "open_prs"
+          "table": "open_issues"
         }
       ],
-      "title": "Open Child PRs Details Info",
-      "transparent": true,
+      "title": "Open Issues: Detailed",
       "type": "table"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 17
-      },
-      "id": 13,
-      "panels": [],
-      "title": "Diagrams",
-      "type": "row"
     },
     {
       "datasource": {
         "type": "postgres",
-        "uid": "Gtb6avfVk"
+        "uid": "${DS_GDM}"
       },
       "fieldConfig": {
         "defaults": {
@@ -786,7 +744,7 @@
               "options": {
                 "from": 1,
                 "result": {
-                  "color": "dark-green",
+                  "color": "super-light-green",
                   "index": 0
                 },
                 "to": 2
@@ -797,7 +755,7 @@
               "options": {
                 "from": 3,
                 "result": {
-                  "color": "green",
+                  "color": "light-green",
                   "index": 1
                 },
                 "to": 5
@@ -808,7 +766,7 @@
               "options": {
                 "from": 6,
                 "result": {
-                  "color": "super-light-yellow",
+                  "color": "semi-dark-green",
                   "index": 2
                 },
                 "to": 7
@@ -819,7 +777,7 @@
               "options": {
                 "from": 8,
                 "result": {
-                  "color": "light-yellow",
+                  "color": "light-blue",
                   "index": 3
                 },
                 "to": 9
@@ -830,7 +788,7 @@
               "options": {
                 "from": 10,
                 "result": {
-                  "color": "light-orange",
+                  "color": "blue",
                   "index": 4
                 },
                 "to": 12
@@ -841,7 +799,7 @@
               "options": {
                 "from": 13,
                 "result": {
-                  "color": "dark-orange",
+                  "color": "dark-blue",
                   "index": 5
                 },
                 "to": 15
@@ -852,7 +810,7 @@
               "options": {
                 "from": 16,
                 "result": {
-                  "color": "light-red",
+                  "color": "light-purple",
                   "index": 6
                 },
                 "to": 20
@@ -863,7 +821,7 @@
               "options": {
                 "from": 21,
                 "result": {
-                  "color": "red",
+                  "color": "purple",
                   "index": 7
                 },
                 "to": 25
@@ -874,7 +832,7 @@
               "options": {
                 "from": 26,
                 "result": {
-                  "color": "dark-red",
+                  "color": "dark-purple",
                   "index": 8
                 },
                 "to": 666
@@ -896,12 +854,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 16,
-        "w": 12,
+        "h": 18,
+        "w": 8,
         "x": 0,
-        "y": 18
+        "y": 20
       },
-      "id": 11,
+      "id": 9,
       "options": {
         "barRadius": 0,
         "barWidth": 0.97,
@@ -928,12 +886,12 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "Gtb6avfVk"
+            "uid": "${DS_GDM}"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \"Squad\", COUNT(*) FROM \"open_prs\" GROUP BY \"Squad\"\r\n",
+          "rawSql": "SELECT\r\n    CASE\r\n        WHEN \"Duration\"::numeric BETWEEN 0 AND 7 THEN '0-7 days'\r\n        WHEN \"Duration\"::numeric BETWEEN 8 AND 14 THEN '8-14 days'\r\n        WHEN \"Duration\"::numeric BETWEEN 15 AND 21 THEN '15-21 days'\r\n        WHEN \"Duration\"::numeric BETWEEN 22 AND 31 THEN '22-31 days'\r\n        ELSE '32-666 days'\r\n    END AS duration_range,\r\n    COUNT(*) as issue_count\r\nFROM open_issues\r\nGROUP BY duration_range\r\nORDER BY duration_range;\r\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -960,19 +918,19 @@
           "table": "open_prs"
         }
       ],
-      "title": "Open PRs by Squads",
+      "title": "Open Issues by Duration",
       "transformations": [],
       "type": "barchart"
     },
     {
       "datasource": {
         "type": "postgres",
-        "uid": "Gtb6avfVk"
+        "uid": "${DS_GDM}"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -999,7 +957,7 @@
               "options": {
                 "from": 1,
                 "result": {
-                  "color": "super-light-green",
+                  "color": "#c7f2c2a8",
                   "index": 0
                 },
                 "to": 2
@@ -1010,7 +968,7 @@
               "options": {
                 "from": 3,
                 "result": {
-                  "color": "green",
+                  "color": "light-blue",
                   "index": 1
                 },
                 "to": 4
@@ -1021,7 +979,7 @@
               "options": {
                 "from": 5,
                 "result": {
-                  "color": "light-yellow",
+                  "color": "semi-dark-blue",
                   "index": 2
                 },
                 "to": 7
@@ -1032,7 +990,7 @@
               "options": {
                 "from": 8,
                 "result": {
-                  "color": "dark-yellow",
+                  "color": "#094db4e6",
                   "index": 3
                 },
                 "to": 10
@@ -1043,7 +1001,7 @@
               "options": {
                 "from": 11,
                 "result": {
-                  "color": "light-orange",
+                  "color": "purple",
                   "index": 4
                 },
                 "to": 13
@@ -1054,7 +1012,7 @@
               "options": {
                 "from": 13,
                 "result": {
-                  "color": "dark-orange",
+                  "color": "dark-purple",
                   "index": 5
                 },
                 "to": 666
@@ -1076,12 +1034,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 16,
-        "w": 12,
-        "x": 12,
-        "y": 18
+        "h": 18,
+        "w": 9,
+        "x": 8,
+        "y": 20
       },
-      "id": 9,
+      "id": 11,
       "options": {
         "barRadius": 0,
         "barWidth": 0.55,
@@ -1103,17 +1061,17 @@
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 0
       },
-      "pluginVersion": "9.4.7",
+      "pluginVersion": "9.3.6",
       "targets": [
         {
           "datasource": {
             "type": "postgres",
-            "uid": "Gtb6avfVk"
+            "uid": "${DS_GDM}"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \"Name Service\", COUNT(*) FROM \"open_prs\" GROUP BY \"Name Service\"",
+          "rawSql": "SELECT \"Service Name\", COUNT(*) FROM \"open_issues\" GROUP BY \"Service Name\"",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1141,45 +1099,281 @@
           "table": "open_prs"
         }
       ],
-      "title": "Open PRs by Services",
+      "title": "Open Issues by Services",
       "transformations": [],
       "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_GDM}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [
+            {
+              "options": {
+                "from": 1,
+                "result": {
+                  "color": "super-light-green",
+                  "index": 0
+                },
+                "to": 10
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 11,
+                "result": {
+                  "color": "green",
+                  "index": 1
+                },
+                "to": 15
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 16,
+                "result": {
+                  "color": "super-light-blue",
+                  "index": 2
+                },
+                "to": 20
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 21,
+                "result": {
+                  "color": "light-blue",
+                  "index": 3
+                },
+                "to": 30
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 31,
+                "result": {
+                  "color": "semi-dark-blue",
+                  "index": 4
+                },
+                "to": 40
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 41,
+                "result": {
+                  "color": "#162faab3",
+                  "index": 5
+                },
+                "to": 50
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 51,
+                "result": {
+                  "color": "purple",
+                  "index": 6
+                },
+                "to": 60
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 61,
+                "result": {
+                  "color": "semi-dark-purple",
+                  "index": 7
+                },
+                "to": 70
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 71,
+                "result": {
+                  "color": "#7f1eafc4",
+                  "index": 8
+                },
+                "to": 666
+              },
+              "type": "range"
+            }
+          ],
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 18,
+        "w": 7,
+        "x": 17,
+        "y": 20
+      },
+      "id": 13,
+      "options": {
+        "displayLabels": [
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": false,
+          "values": []
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.4.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_GDM}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT \"Squad\", COUNT(*) FROM \"open_issues\" GROUP BY \"Squad\"\r\n",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [
+                  {
+                    "name": "*",
+                    "type": "functionParameter"
+                  }
+                ],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
+          "table": "open_prs"
+        }
+      ],
+      "title": "Open Issues by Squads Statistics",
+      "transformations": [],
+      "type": "piechart"
     }
   ],
   "refresh": "",
   "revision": 1,
-  "schemaVersion": 38,
+  "schemaVersion": 37,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "monitoring",
+    "docsportal"
+  ],
   "templating": {
     "list": [
       {
-        "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
-        },
+        "current": {},
         "datasource": {
           "type": "postgres",
-          "uid": "Gtb6avfVk"
+          "uid": "${DS_GDM}"
         },
-        "definition": "SELECT DISTINCT \"Squad\"\nFROM open_prs\nORDER BY \"Squad\";",
+        "definition": "SELECT DISTINCT \"Squad\"\nFROM open_issues\nORDER BY \"Squad\";",
         "hide": 0,
         "includeAll": true,
         "label": "Squad",
         "multi": true,
-        "name": "squad_filter",
+        "name": "squad_issues",
         "options": [],
-        "query": "SELECT DISTINCT \"Squad\"\nFROM open_prs\nORDER BY \"Squad\";",
+        "query": "SELECT DISTINCT \"Squad\"\nFROM open_issues\nORDER BY \"Squad\";",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 1,
+        "sort": 0,
         "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "postgres",
+          "uid": "${DS_GDM}"
+        },
+        "definition": "SELECT DISTINCT \"Environment\"\nFROM open_issues\nORDER BY \"Environment\";",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Environment",
+        "multi": true,
+        "name": "env_issues",
+        "options": [],
+        "query": "SELECT DISTINCT \"Environment\"\nFROM open_issues\nORDER BY \"Environment\";",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "DESC",
+          "value": "DESC"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Duration",
+        "multi": false,
+        "name": "sort_duration",
+        "options": [
+          {
+            "selected": false,
+            "text": "ASC",
+            "value": "ASC"
+          },
+          {
+            "selected": true,
+            "text": "DESC",
+            "value": "DESC"
+          }
+        ],
+        "query": "ASC,DESC",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
       }
     ]
   },
@@ -1187,12 +1381,10 @@
     "from": "now-6h",
     "to": "now"
   },
-  "timepicker": {
-    "hidden": false
-  },
+  "timepicker": {},
   "timezone": "",
-  "title": "Open PRs Dashboard",
-  "uid": "4vLGLDB4z",
-  "version": 33,
+  "title": "Open Issues",
+  "uid": "I-YJAuBVk",
+  "version": 12,
   "weekStart": ""
 }
