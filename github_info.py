@@ -3,6 +3,11 @@ import requests
 import re
 import psycopg2
 from github import Github
+import time
+
+start_time = time.time()
+
+print("**GITHUB INFO SCRIPT IS RUNNING**")
 
 github_token = os.getenv("GITHUB_TOKEN")
 
@@ -13,27 +18,50 @@ db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
 
+def check_env_variables():
+    required_env_vars = [
+        "GITHUB_TOKEN", "DB_HOST", "DB_PORT",
+        "DB_NAME", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
+    ]
+    for var in required_env_vars:
+        if os.getenv(var) is None:
+            raise Exception(f"Missing environment variable: {var}")
+
+
 def connect_to_db():
-    return psycopg2.connect(
-        host=db_host,
-        port=db_port,
-        dbname=db_name,
-        user=db_user,
-        password=db_password
-    )
+    print("Connecting to Postgres...")
+    try:
+        return psycopg2.connect(
+            host=db_host,
+            port=db_port,
+            dbname=db_name,
+            user=db_user,
+            password=db_password
+        )
+    except psycopg2.Error as e:
+        print(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        return None
 
 
 def extract_pull_links(cur):
-    cur.execute('SELECT "Auto PR URL" FROM orphaned_prs;')
-    pull_links = [row[0] for row in cur.fetchall()]
-    return pull_links
+    print("Extracting links...")
+    try:
+        cur.execute('SELECT "Auto PR URL" FROM orphaned_prs;')
+        pull_links = [row[0] for row in cur.fetchall()]
+        return pull_links
+    except Exception as e:
+        print(f"Extracting pull links: an error occurred while extracting pull links from the database: {str(e)}")
 
 
 def get_auto_prs(repo_name, access_token, pull_links):
     headers = {"Authorization": f"Bearer {access_token}"}
     url = f"https://api.github.com/repos/opentelekomcloud-docs/{repo_name}/pulls"
     params = {"state": "all"}
-    response = requests.get(url, headers=headers, params=params)
+    try:
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Get PRs: an error occurred while trying to get pull requests: {e}")
     auto_prs = []
     for pr in response.json():
         body = pr.get("body")
@@ -43,17 +71,22 @@ def get_auto_prs(repo_name, access_token, pull_links):
 
 
 def add_github_columns(cur, conn):
-    cur.execute(
-        '''
-        ALTER TABLE orphaned_prs
-        ADD COLUMN IF NOT EXISTS "Github PR State" VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS "Github PR Merged" BOOLEAN;
-        '''
-    )
-    conn.commit()
+    print("Add info to the Postgres...")
+    try:
+        cur.execute(
+            '''
+            ALTER TABLE orphaned_prs
+            ADD COLUMN IF NOT EXISTS "Github PR State" VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS "Github PR Merged" BOOLEAN;
+            '''
+        )
+        conn.commit()
+    except requests.exceptions.RequestException as e:
+        print(f"Add new column: an error occurred while trying to get pull requests: {e}")
 
 
 def update_orphaned_prs(cur, conn, rows, auto_prs):
+    print("Processing orphaned PRs...")
     for row in rows:
         pr_id, pull_link = row
         gitea_repo_name = re.search(r"/docs/(.+?)/", pull_link).group(1)
@@ -70,11 +103,14 @@ def update_orphaned_prs(cur, conn, rows, auto_prs):
                 merged = False
             else:
                 merged = True
+            try:
+                cur.execute(
+                    'UPDATE orphaned_prs SET "Github PR State" = %s, "Github PR Merged" = %s WHERE id = %s;',
+                    (state, merged, pr_id)
+                )
+            except Exception as e:
+                print(f"Orphanes: an error occurred while updating orphaned PRs in the database: {str(e)}")
 
-            cur.execute(
-                'UPDATE orphaned_prs SET "Github PR State" = %s, "Github PR Merged" = %s WHERE id = %s;',
-                (state, merged, pr_id)
-            )
         else:
             continue
 
@@ -82,6 +118,7 @@ def update_orphaned_prs(cur, conn, rows, auto_prs):
 
 
 def main():
+    check_env_variables()
     g = Github(github_token)
 
     org = g.get_organization("opentelekomcloud-docs")
@@ -93,6 +130,7 @@ def main():
     pull_links = extract_pull_links(cur)
 
     auto_prs = []
+    print("Gathering PRs info...")
     for repo_name in repo_names:
         auto_prs += get_auto_prs(repo_name, github_token, pull_links)
 
@@ -105,6 +143,10 @@ def main():
 
     cur.close()
     conn.close()
+    end_time = time.time()
+    execution_time = end_time - start_time
+    minutes, seconds = divmod(execution_time, 60)
+    print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
 
 
 if __name__ == "__main__":

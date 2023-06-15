@@ -11,6 +11,8 @@ import time
 
 start_time = time.time()
 
+print("**OPEN PRs SCRIPT IS RUNNING**")
+
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 yaml_url = "https://gitea.eco.tsi-dev.otc-service.com/api/v1/repos/infra/otc-metadata/contents/%2Fotc_metadata%2Fdata%2Fservices.yaml?token="
 session = requests.Session()
@@ -25,6 +27,15 @@ db_name = os.getenv("DB_NAME")
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
+
+def check_env_variables():
+    required_env_vars = [
+        "GITHUB_TOKEN", "DB_HOST", "DB_PORT",
+        "DB_NAME", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
+    ]
+    for var in required_env_vars:
+        if os.getenv(var) is None:
+            raise Exception(f"Missing environment variable: {var}")
 
 def csv_erase():
     try:
@@ -111,7 +122,6 @@ def get_repos(org, gitea_token):
 
 
 def get_parent_pr(repo):
-    print("Gathering parent PRs...")
     try:
         path = pathlib.Path("proposalbot_prs.csv")
         if path.exists() is False:
@@ -611,6 +621,7 @@ def update_squad_and_title(conn, cur):
 
 
 def main():
+    check_env_variables()
     csv_erase()
 
     g = Github(github_token)
@@ -625,6 +636,7 @@ def main():
     create_prs_table(conn, cur, "orphaned_prs")
 
     repos = get_repos(org, gitea_token)
+    print("Gathering parent PRs...")
     for repo in repos:
         get_parent_pr(repo)
 
@@ -655,7 +667,7 @@ def main():
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    print(f"All of the operations has been executed successfully in {int(minutes)} minutes and {int(seconds)} seconds! Let's go and drink some beer :)")
+    print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
 
 
 if __name__ == "__main__":
