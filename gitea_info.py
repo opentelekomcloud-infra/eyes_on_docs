@@ -122,6 +122,7 @@ def get_repos(org, gitea_token):
 
 
 def get_parent_pr(repo):
+    print("Gathering parent PRs...")
     try:
         path = pathlib.Path("proposalbot_prs.csv")
         if path.exists() is False:
@@ -668,7 +669,6 @@ def main():
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
     print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
-
 
 if __name__ == "__main__":
     main()
