@@ -27,7 +27,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "9.5.1"
+      "version": "9.5.2"
     },
     {
       "type": "datasource",
@@ -126,7 +126,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.5.1",
+      "pluginVersion": "9.5.2",
       "targets": [
         {
           "datasource": {
@@ -398,6 +398,42 @@
                 ]
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "id"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Parent PR merged"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Parent PR State"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
           }
         ]
       },
@@ -422,7 +458,7 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "9.5.1",
+      "pluginVersion": "9.5.2",
       "targets": [
         {
           "datasource": {
@@ -433,7 +469,7 @@
           "format": "table",
           "hide": false,
           "rawQuery": true,
-          "rawSql": "SELECT \"Parent PR Number\", \"Name Service\", \"Squad\", \"Auto PR URL\", \"Auto PR State\", \"If merged\", \"Parent PR State\", \"Parent PR merged\", \"Github PR State\", \"Github PR Merged\" FROM orphaned_prs WHERE \"Squad\" IN ($squad_filter);",
+          "rawSql": "SELECT * FROM orphaned_prs WHERE \"Squad\" IN ($squad_filter);",
           "refId": "A",
           "sql": {
             "columns": [
@@ -454,9 +490,24 @@
           }
         }
       ],
-      "title": "Open Child PRs Details Info",
+      "title": "Orphaned Child PRs Details Info",
       "transparent": true,
       "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 16,
+      "panels": [],
+      "repeat": "env",
+      "repeatDirection": "h",
+      "title": "${env}",
+      "type": "row"
     },
     {
       "datasource": {
@@ -492,10 +543,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 5,
         "x": 0,
-        "y": 8
+        "y": 10
       },
       "id": 3,
       "options": {
@@ -510,7 +561,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.5.1",
+      "pluginVersion": "9.5.2",
       "targets": [
         {
           "datasource": {
@@ -520,7 +571,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT id FROM \"open_prs\" WHERE \"Squad\" IN ($squad_filter);",
+          "rawSql": "SELECT id FROM \"open_prs\" WHERE \"Squad\" IN ($squad_filter) AND \"Environment\" IN ($env);",
           "refId": "A",
           "sql": {
             "columns": [
@@ -548,7 +599,7 @@
           "table": "open_prs"
         }
       ],
-      "title": "Total Count of Child PRs",
+      "title": "Total Count of ${env} Child PRs",
       "transparent": true,
       "type": "gauge"
     },
@@ -578,7 +629,21 @@
               "url": "${__data.fields[\"Auto PR URL\"]}"
             }
           ],
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "Gitea": {
+                  "color": "super-light-green",
+                  "index": 0
+                },
+                "Github": {
+                  "color": "super-light-blue",
+                  "index": 1
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -626,6 +691,10 @@
                       "false": {
                         "color": "#ffdde1",
                         "index": 0
+                      },
+                      "true": {
+                        "color": "super-light-green",
+                        "index": 1
                       }
                     },
                     "type": "value"
@@ -649,10 +718,10 @@
         ]
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 19,
         "x": 5,
-        "y": 9
+        "y": 10
       },
       "id": 1,
       "options": {
@@ -666,9 +735,10 @@
           ],
           "show": false
         },
+        "frameIndex": 2,
         "showHeader": true
       },
-      "pluginVersion": "9.5.1",
+      "pluginVersion": "9.5.2",
       "targets": [
         {
           "datasource": {
@@ -679,7 +749,7 @@
           "format": "table",
           "key": "Q-d6c96520-39f4-4c61-86ea-ac8a973d2c88-0",
           "rawQuery": true,
-          "rawSql": "SELECT * FROM \"open_prs\" WHERE \"Squad\" IN ($squad_filter);\r\n",
+          "rawSql": "SELECT * FROM \"open_prs\" WHERE \"Squad\" IN ($squad_filter) AND \"Environment\" IN ($env);\r\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -777,7 +847,7 @@
           "table": "open_prs"
         }
       ],
-      "title": "Open Child PRs Details Info",
+      "title": "Open ${env} Child PRs Details Info",
       "transparent": true,
       "type": "table"
     },
@@ -787,7 +857,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 29
       },
       "id": 13,
       "panels": [],
@@ -939,10 +1009,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 16,
+        "h": 21,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 30
       },
       "id": 11,
       "options": {
@@ -976,7 +1046,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \"Squad\", COUNT(*) FROM \"open_prs\" GROUP BY \"Squad\"\r\n",
+          "rawSql": "SELECT \"Squad\", COUNT(*) FROM \"open_prs\" WHERE \"Environment\" IN ($env) GROUP BY \"Squad\"\r\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1003,7 +1073,7 @@
           "table": "open_prs"
         }
       ],
-      "title": "Open PRs by Squads",
+      "title": "${env}: open PRs by Squads",
       "transformations": [],
       "type": "barchart"
     },
@@ -1119,10 +1189,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 16,
+        "h": 21,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 30
       },
       "id": 9,
       "options": {
@@ -1156,7 +1226,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \"Name Service\", COUNT(*) FROM \"open_prs\" GROUP BY \"Name Service\"",
+          "rawSql": "SELECT \"Service Name\", COUNT(*) FROM \"open_prs\" WHERE \"Environment\" IN ($env) GROUP BY \"Service Name\"\r\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1184,7 +1254,7 @@
           "table": "open_prs"
         }
       ],
-      "title": "Open PRs by Services",
+      "title": "${env}: open PRs by Services",
       "transformations": [],
       "type": "barchart"
     }
@@ -1202,19 +1272,58 @@
           "type": "postgres",
           "uid": "${DS_DOCKER-POSTGRESQL}"
         },
-        "definition": "SELECT DISTINCT \"Squad\"\nFROM open_prs\nORDER BY \"Squad\";",
+        "definition": "SELECT DISTINCT \"Category\"\nFROM repo_title_category\nORDER BY \"Category\";",
         "hide": 0,
         "includeAll": true,
         "label": "Squad",
         "multi": true,
         "name": "squad_filter",
         "options": [],
-        "query": "SELECT DISTINCT \"Squad\"\nFROM open_prs\nORDER BY \"Squad\";",
+        "query": "SELECT DISTINCT \"Category\"\nFROM repo_title_category\nORDER BY \"Category\";",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
         "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": [
+            "Github",
+            "Gitea"
+          ],
+          "value": [
+            "Github",
+            "Gitea"
+          ]
+        },
+        "hide": 0,
+        "includeAll": true,
+        "label": "Environment",
+        "multi": true,
+        "name": "env",
+        "options": [
+          {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": true,
+            "text": "Gitea",
+            "value": "Gitea"
+          },
+          {
+            "selected": true,
+            "text": "Github",
+            "value": "Github"
+          }
+        ],
+        "query": "Gitea, Github",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
       }
     ]
   },
@@ -1228,6 +1337,6 @@
   "timezone": "",
   "title": "Open PRs Dashboard",
   "uid": "4vLGLDB4z",
-  "version": 33,
+  "version": 55,
   "weekStart": ""
 }
