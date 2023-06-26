@@ -112,7 +112,7 @@ def get_github_issues(github_token, repo_names):
     for repo in repo_names:
         try:
             url = f"https://api.github.com/repos/{github_org}/{repo}/issues"
-            params = {"state": "open"}
+            params = {"state": "open", "filter": "all"}
             repos_resp = requests.get(url, headers=headers, params=params)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
