@@ -112,7 +112,7 @@ def get_github_issues(github_token, repo_names):
     for repo in repo_names:
         try:
             url = f"https://api.github.com/repos/{github_org}/{repo}/issues"
-            params = {"state": "open"}
+            params = {"state": "open", "filter": "all"}
             repos_resp = requests.get(url, headers=headers, params=params)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
@@ -164,33 +164,35 @@ def get_issues_table(gitea_issues, github_issues, cur, conn):
         conn.rollback()
 
     service_pattern = re.compile(r"(?P<service_name>(?<=\/opentelekomcloud-docs\/)([^\/]+)(?=\/))")
-    try:
-        for hub in github_issues:
-            if hub:
-                environment = "Github"
-                service_match = None
-                for gh in service_pattern.finditer(hub['url']):
-                    service_match = gh
-                    break
-                if service_match is not None:
-                    service_name = service_match.group("service_name").strip()
-                    squad = ""
-                    number = hub['number']
-                    url = hub['html_url']
-                    user = hub['user']['login']
-                    created_at = datetime.strptime(hub['created_at'], '%Y-%m-%dT%H:%M:%SZ')
-                    now = datetime.utcnow()
-                    duration = now - created_at
-                    duration_days = duration.days
-                    comments = hub['comments']
-                    assignees = ', '.join([assignee['login'] for assignee in hub['assignees']])
+    for hub in github_issues:
+        if 'pull_request' in hub:
+            continue
 
-                    cur.execute('INSERT INTO open_issues ("Environment", "Service Name", "Squad", "Issue Number", "Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                                (environment, service_name, squad, number, url, user, created_at, duration_days, comments, assignees))
-                    conn.commit()
-    except Exception as e:
-        print(f"Issues table: an error occurred while posting data to Postgres: {e}")
-        conn.rollback()
+        environment = "Github"
+        service_match = None
+        for gh in service_pattern.finditer(hub['url']):
+            service_match = gh
+            break
+        if service_match is not None:
+            service_name = service_match.group("service_name").strip()
+            squad = ""
+            number = hub['number']
+            url = hub['html_url']
+            user = hub['user']['login']
+            created_at = datetime.strptime(hub['created_at'], '%Y-%m-%dT%H:%M:%SZ')
+            now = datetime.utcnow()
+            duration = now - created_at
+            duration_days = duration.days
+            comments = hub['comments']
+            assignees = ', '.join([assignee['login'] for assignee in hub['assignees']])
+
+            try:
+                cur.execute('INSERT INTO open_issues ("Environment", "Service Name", "Squad", "Issue Number", "Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                            (environment, service_name, squad, number, url, user, created_at, duration_days, comments, assignees))
+                conn.commit()
+            except Exception as e:
+                print(f"Issues table: an error occurred while posting data to Postgres: {e}")
+                conn.rollback()
 
 
 def update_squad_and_title(conn, cur):
