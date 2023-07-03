@@ -6,6 +6,7 @@ from git import Repo
 from github import Github
 from datetime import datetime
 import time
+import subprocess
 
 start_time = time.time()
 
@@ -69,10 +70,10 @@ def create_commits_table(conn, cur, table_name):
 
 def get_last_commit_url(github_repo, git_repo, path):
     try:
-        last_commit_sha = git_repo.git.log('-1', '--pretty=format:%H', path)
+        last_commit_sha = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%H', '--', f':(exclude)**/conf.py', path], cwd=git_repo.working_dir).decode().strip()
         last_commit_url = f"https://github.com/{github_repo.full_name}/commit/{last_commit_sha}"
         return last_commit_url
-    except Github.GithubException.GithubException as e:
+    except Exception as e:
         print(f"SHA: an error occurred while getting last commit URL: {e}")
 
 def get_last_commit(cur, conn, doctype):
