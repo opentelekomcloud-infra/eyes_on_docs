@@ -4,7 +4,6 @@ import json
 import csv
 import re
 import pathlib
-import base64
 import psycopg2
 from github import Github
 import time
@@ -14,16 +13,13 @@ start_time = time.time()
 print("**OPEN PRs SCRIPT IS RUNNING**")
 
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
-yaml_url = "https://gitea.eco.tsi-dev.otc-service.com/api/v1/repos/infra/otc-metadata/contents/%2Fotc_metadata%2Fdata%2Fservices.yaml?token="
 session = requests.Session()
 session.debug = False
-org = "docs"
 gitea_token = os.getenv("GITEA_TOKEN")
 github_token = os.getenv("GITHUB_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_NAME")
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -31,11 +27,12 @@ db_password = os.getenv("DB_PASSWORD")
 def check_env_variables():
     required_env_vars = [
         "GITHUB_TOKEN", "DB_HOST", "DB_PORT",
-        "DB_NAME", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
+        "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
     ]
     for var in required_env_vars:
         if os.getenv(var) is None:
             raise Exception(f"Missing environment variable: {var}")
+
 
 def csv_erase():
     try:
@@ -53,8 +50,8 @@ def csv_erase():
         print(f"CSV erasing: an error occurred while trying to delete csv files: {e}")
 
 
-def connect_to_db():
-    print("Connecting to Postgres...")
+def connect_to_db(db_name):
+    print(f"Connecting to Postgres ({db_name})...")
     try:
         return psycopg2.connect(
             host=db_host,
@@ -68,9 +65,9 @@ def connect_to_db():
         return None
 
 
-def create_prs_table(conn, cur, table_name):
+def create_prs_table(conn_csv, cur_csv, table_name):
     try:
-        cur.execute(
+        cur_csv.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
             id SERIAL PRIMARY KEY,
             "Parent PR Number" INT,
@@ -84,7 +81,7 @@ def create_prs_table(conn, cur, table_name):
             "Parent PR merged" BOOLEAN
             );'''
         )
-        conn.commit()
+        conn_csv.commit()
         print(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
         print(f"Tables creating: an error occurred while trying to create a table {table_name} in the database: {e}")
@@ -121,8 +118,7 @@ def get_repos(org, gitea_token):
     return repos
 
 
-def get_parent_pr(repo):
-    print("Gathering parent PRs...")
+def get_parent_pr(org, repo):
     try:
         path = pathlib.Path("proposalbot_prs.csv")
         if path.exists() is False:
@@ -199,7 +195,7 @@ def extract_number_from_body(text):
     return None
 
 
-def get_pull_requests(repo):
+def get_pull_requests(org, repo):
     print("Gathering Gitea's child PRs...")
     states = ["open", "closed"]
     pull_requests = []
@@ -252,171 +248,20 @@ def get_pull_requests(repo):
     return pull_requests
 
 
-def prepare_yaml(yaml_url, gitea_token):
-    print("Preparing services.yaml...")
+def fetch_repo_title_category(cur_csv, rtctable):
+    print(f"Fetching RTC table {rtctable}...")
     try:
-        yaml_resp = session.get(f"{yaml_url}{gitea_token}")
-        yaml_resp.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        print(f"YAML: an error occurred while trying to retrieve the YAML file: {e}")
-        return None
-
-    try:
-        yaml_dict = json.loads(yaml_resp.content.decode())
-    except json.JSONDecodeError as e:
-        print(f"YAML: an error occurred while trying to decode JSON: {e}")
-        return None
-
-    try:
-        content = yaml_dict["content"]
-        raw = base64.b64decode(content)
-        decode = raw.decode()
-        replace = decode.replace("\t", " " * 4).replace("- ", "  ").replace("repo: docs/", "").replace("repo: opentelekomcloud-docs/", "").replace("documents: ", "").replace("services:\n", "MARKER\n")
-        services = re.sub("\s+teams|\s+environment|\s+type|\s+permission|\s+internal|\s+public|-rw|-ro\n|read|gitea|github|\s+write|[\s\S]*?(?=service_categories)|:", "", replace)
-    except (KeyError, base64.binascii.Error, UnicodeDecodeError, re.error) as e:
-        print(f"YAML: an error occurred while processing the YAML content: {e}")
-        return None
-    return services
-
-
-def replace_category_names(yaml_services):
-    try:
-        print("Adjusting squads names...")
-        pretty_categories = {
-                            "bigdata-ai": "Big Data & AI",
-                            "compute": "Compute",
-                            "database": "Database",
-                            "eco": "Eco",
-                            "container": "Container",
-                            "orchestration": "Orchestration",
-                            "storage": "Storage",
-                            "network": "Network",
-                            "dashboard": "Dashboard",
-                            "security-services": "Security Services"
-                            }
-        pattern = re.compile(r"^[\s\S]*?^MARKER\n", re.MULTILINE)
-        cutted = re.sub(pattern, "", yaml_services)
-    except re.error as e:
-        print(f"Squads: n error occurred while performing regular expression operations: {e}")
-        return None
-
-    try:
-        category_pattern = re.compile(r"(?<=name\sdocs-)(?P<cat>.*)")
-
-        serv_string = cutted
-        for match in category_pattern.finditer(cutted):
-            category = match.group("cat").rstrip()
-            if category in pretty_categories:
-                serv_string = serv_string.replace(category, pretty_categories[category])
-    except re.error as e:
-        print(f"Squads: an error occurred while performing regular expression operations: {e}")
-        return None
-
-    return serv_string
-
-
-def service_tuple(serv_string):
-    print("Matching repos, titles and categories...")
-    try:
-        repo_title_category = {}
-        blocks = re.split("repositories", serv_string)
-    except re.error as e:
-        print(f"Service tuple: an error occurred while trying to split the string: {e}")
-        return None
-
-    for block in blocks:
-        try:
-            category_pattern = re.compile(r"(?<=name\sdocs-)(?P<cat>.*)")
-            cat = category_pattern.search(block)
-            if cat:
-                category = cat.group("cat").strip()
-            else:
-                continue
-        except re.error as e:
-            print(f"Service tuple: an error occurred while performing regex operations: {e}")
-            return None
-
-        try:
-            title_pattern = re.compile(r"service_title\s*(?P<title>[^\n]+)")
-            tit = title_pattern.search(block)
-            if tit:
-                title = tit.group("title").strip()
-            else:
-                continue
-        except re.error as e:
-            print(f"Service tuple: an error occurred while performing regex operations: {e}")
-            return None
-
-        try:
-            repo_pattern = re.compile(r"(?P<reposit>(?<=^\s{8}).*)")
-            rep = repo_pattern.search(block)
-            if rep:
-                repository = rep.group("reposit").strip()
-                repo_title_category[repository] = (title, category)
-            else:
-                continue
-        except re.error as e:
-            print(f"Service tuple: an error occurred while performing regex operations: {e}")
-            return None
-
-    try:
-        repo_title_category["content-delivery-network"] = ("Content Delivery Network", "Other")
-        repo_title_category["data-admin-service"] = ("Data Admin Service", "Other")
-    except KeyError as e:
-        print(f"Service tuple: an error occurred while trying to add an element to the dictionary: {e}")
-
-    return repo_title_category
-
-
-def create_rtc_table(conn, cur, repo_title_category):
-    print("Creating new service table...")
-    try:
-        cur.execute(
-            f'''CREATE TABLE IF NOT EXISTS repo_title_category (
-            id SERIAL PRIMARY KEY,
-            "Repository" VARCHAR(255),
-            "Title" VARCHAR(255),
-            "Category" VARCHAR(255)
-            );'''
-        )
-        conn.commit()
-    except Exception as e:
-        print(f"RTC: an error occurred while trying to create a table: {e}")
-        return
-
-    for repo, (title, category) in repo_title_category.items():
-        try:
-            cur.execute(
-                """
-                INSERT INTO repo_title_category ("Repository", "Title", "Category")
-                VALUES (%s, %s, %s);
-                """,
-                (repo, title, category)
-            )
-        except Exception as e:
-            print(f"RTC: an error occurred while trying to insert data into the table: {e}")
-            return
-
-    try:
-        conn.commit()
-    except Exception as e:
-        print(f"RTC: an error occurred while trying to commit the changes: {e}")
-
-
-def fetch_repo_title_category(cur):
-    print("Fetching RTC table...")
-    try:
-        cur.execute("SELECT * FROM repo_title_category")
-        return cur.fetchall()
+        cur_csv.execute(f"SELECT * FROM {rtctable}")
+        return cur_csv.fetchall()
     except Exception as e:
         print(f"Fetch: an error occurred while trying to fetch data from the table: {e}")
         return None
 
 
-def update_service_titles(cur):
-    print("Updating service titles..")
+def update_service_titles(cur_csv, rtctable):
+    print(f"Updating service titles using {rtctable}..")
     try:
-        repo_title_category = fetch_repo_title_category(cur)
+        repo_title_category = fetch_repo_title_category(cur_csv, rtctable)
     except Exception as e:
         print(f"Titles: an error occurred while fetching repo title category: {e}")
         return
@@ -427,7 +272,7 @@ def update_service_titles(cur):
             rows = list(reader)
             header = rows.pop(0)
             for i, row in enumerate(rows):
-                for (repo_id, repo, title, category) in repo_title_category:
+                for (repo_id, repo, title, category, stype) in repo_title_category:
                     if repo == row[1]:
                         title_index = header.index("Service Name")
                         row[title_index] = title
@@ -451,9 +296,10 @@ def update_service_titles(cur):
         return
 
 
-def add_squad_column(cur):
+def add_squad_column(cur_csv, rtctable):
+    print("Add 'Squad' column into csv file...")
     try:
-        repo_title_category = fetch_repo_title_category(cur)
+        repo_title_category = fetch_repo_title_category(cur_csv, rtctable)
     except Exception as e:
         print(f"Squad column: an error occurred while fetching repo title category: {e}")
         return
@@ -466,7 +312,7 @@ def add_squad_column(cur):
             header.insert(2, "Squad")
             for row in rows:
                 name_service = row[1]
-                for (repo_id, repo, title, category) in repo_title_category:
+                for (repo_id, repo, title, category, stype) in repo_title_category:
                     if title == name_service:
                         row.insert(2, category)
     except IOError as e:
@@ -489,7 +335,7 @@ def add_squad_column(cur):
         return
 
 
-def compare_csv_files(conn, cur):
+def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
     print("Gathering open and orphaned PRs...")
     try:
         doc_exports_prs = []
@@ -518,12 +364,12 @@ def compare_csv_files(conn, cur):
                     pr1.extend([pr2[3], pr2[4]])
                     orphaned.append(pr1)
                     try:
-                        cur.execute("""
-                            INSERT INTO public.orphaned_prs
+                        cur_orph.execute(f"""
+                            INSERT INTO public.{opentable}
                             ("Parent PR Number", "Service Name", "Squad", "Auto PR URL", "Auto PR State", "If merged", "Environment", "Parent PR State", "Parent PR merged")
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, tuple(pr1))
-                        conn.commit()
+                        conn_orph.commit()
                     except Exception as e:
                         print(f"Open and orphans: an error occurred while inserting into the orphaned_prs table: {e}")
 
@@ -532,21 +378,21 @@ def compare_csv_files(conn, cur):
                     pr1.extend([pr2[3], pr2[4]])
                     open_prs.append(pr1)
                     try:
-                        cur.execute("""
-                            INSERT INTO public.open_prs
+                        cur_csv.execute(f"""
+                            INSERT INTO public.{opentable}
                             ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL", "Auto PR State", "If merged", "Environment", "Parent PR State", "Parent PR merged")
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, tuple(pr1))
-                        conn.commit()
+                        conn_csv.commit()
                     except Exception as e:
                         print(f"Open and orphans: an error occurred while inserting into the open_prs table: {e}")
 
 
-def gitea_pr_info(parent_pr_name):
+def gitea_pr_info(org, parent_pr_name):
     parent_pr_num = None
     parent_pr_state = None
     parent_pr_merged = None
-    pull_request_resp = session.get(f"{gitea_api_endpoint}/repos/docs/{parent_pr_name}?token={gitea_token}")
+    pull_request_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{parent_pr_name}?token={gitea_token}")
     if pull_request_resp.status_code == 200:
         parent_info = json.loads(pull_request_resp.content.decode("utf-8"))
         parent_pr_num = parent_info.get("number")
@@ -556,17 +402,17 @@ def gitea_pr_info(parent_pr_name):
     return parent_pr_num, parent_pr_state, parent_pr_merged
 
 
-def get_github_open_prs(org, conn, cur):
-    print("Gathering Github open PRs...")
-    if not org or not conn or not cur:
+def get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string):
+    print(f"Gathering Github open PRs for {string}...")
+
+    if not github_org or not conn_csv or not cur_csv:
         print("Github PRs: error: Invalid input parameters.")
         return
 
     try:
-        for repo in org.get_repos():
+        for repo in github_org.get_repos():
             for pr in repo.get_pulls(state='open'):
                 if pr.body is not None and 'This is an automatically created Pull Request for changes to' in pr.body:
-                    pr_number = pr.number
                     name_service = pr.base.repo.name
                     squad = ""
                     github_pr_url = pr.html_url
@@ -576,99 +422,105 @@ def get_github_open_prs(org, conn, cur):
                     else:
                         merged = True
                     env = "Github"
-                    match_url = re.search(r"(?P<pr>(?<=\/docs\/).*(?<!\.))", pr.body)
+                    match_url = re.search(rf"(?<={string})/.*(?=.)", pr.body)
                     if match_url:
-                        parent_api_name = match_url.group("pr")
-                        parent_pr_num, parent_pr_state, parent_pr_merged = gitea_pr_info(parent_api_name)
-                        cur.execute(
-                            """
-                            INSERT INTO open_prs ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL", "Auto PR State", "If merged", "Environment", "Parent PR State", "Parent PR merged")
+                        parent_api_name = match_url.group(0)
+                        parent_pr_num, parent_pr_state, parent_pr_merged = gitea_pr_info(parent_api_name, string)
+                        cur_csv.execute(
+                            f"""
+                            INSERT INTO {opentable} ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL", "Auto PR State", "If merged", "Environment", "Parent PR State", "Parent PR merged")
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
                             """,
                             (parent_pr_num, name_service, squad, github_pr_url, auto_pr_state, merged, env, parent_pr_state, parent_pr_merged)
                         )
-                        conn.commit()
+                        conn_csv.commit()
     except Exception as e:
         print('Github PRs: an error occurred:', e)
 
 
-def update_squad_and_title(conn, cur):
+def update_squad_and_title(conn_csv, cur_csv, rtctable, opentable):
     print("Updating squads and titles...")
     try:
-        cur.execute("SELECT * FROM open_prs;")
-        open_issues_rows = cur.fetchall()
+        cur_csv.execute("SELECT * FROM open_prs;")
+        open_issues_rows = cur_csv.fetchall()
 
         for row in open_issues_rows:
-            cur.execute(
-                """UPDATE open_prs
+            cur_csv.execute(
+                f"""UPDATE {opentable}
                     SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
-                    FROM repo_title_category AS rtc
-                    WHERE open_prs."Service Name" = rtc."Repository"
-                    AND open_prs.id = %s;""",
+                    FROM {rtctable} AS rtc
+                    WHERE {opentable}."Service Name" = rtc."Repository"
+                    AND {opentable}.id = %s;""",
                 (row[0],)
             )
-            cur.execute(
-                """UPDATE open_prs
+            cur_csv.execute(
+                f"""UPDATE {opentable}
                     SET "Squad" = 'Other'
-                    WHERE open_prs."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
-                    AND open_prs.id = %s;""",
+                    WHERE {opentable}."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
+                    AND {opentable}.id = %s;""",
                 (row[0],)
             )
-            conn.commit()
+            conn_csv.commit()
 
     except Exception as e:
         print(f"Error updating squad and title: {e}")
-        conn.rollback()
+        conn_csv.rollback()
 
 
-def main():
+def main(org, gh_org, rtctable, opentable, string):
     check_env_variables()
     csv_erase()
 
+    conn_csv = connect_to_db("csv")
+    cur_csv = conn_csv.cursor()
+
     g = Github(github_token)
-    gh_org = g.get_organization("opentelekomcloud-docs")
-    conn = connect_to_db()
-    cur = conn.cursor()
+    github_org = g.get_organization(gh_org)
 
-    cur.execute("DROP TABLE IF EXISTS open_prs, orphaned_prs, repo_title_category")
-    conn.commit()
+    cur_csv.execute(f"DROP TABLE IF EXISTS {opentable}")
+    conn_csv.commit()
 
-    create_prs_table(conn, cur, "open_prs")
-    create_prs_table(conn, cur, "orphaned_prs")
+    create_prs_table(conn_csv, cur_csv, opentable)
 
     repos = get_repos(org, gitea_token)
     print("Gathering parent PRs...")
     for repo in repos:
-        get_parent_pr(repo)
+        get_parent_pr(org, repo)
 
-    get_pull_requests("doc-exports")
+    get_pull_requests(org, "doc-exports")
 
-    yaml_services = prepare_yaml(yaml_url, gitea_token)
-    serv_string = replace_category_names(yaml_services)
-    repo_title_category = service_tuple(serv_string)
-    rtc_dict = {}
-    for key, value in repo_title_category.items():
-        new_key = key.lower().replace(" ", "-").replace("-services", "").replace("-ro read\n", "")
-        rtc_dict[new_key] = value
+    update_service_titles(cur_csv, rtctable)
+    add_squad_column(cur_csv, rtctable)
 
-    repo_title_category = rtc_dict
-    create_rtc_table(conn, cur, repo_title_category)
+    conn_orph = connect_to_db("orph")
+    cur_orph = conn_orph.cursor()
 
-    update_service_titles(cur)
-    add_squad_column(cur)
-    compare_csv_files(conn, cur)
+    cur_orph.execute(f"DROP TABLE IF EXISTS {opentable}")
+    conn_orph.commit()
+
+    create_prs_table(conn_orph, cur_orph, opentable)
+    compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable)
 
     csv_erase()
 
-    get_github_open_prs(gh_org, conn, cur)
-    update_squad_and_title(conn, cur)
+    get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string)
+    update_squad_and_title(conn_csv, cur_csv, rtctable, opentable)
 
-    cur.close()
-    conn.close()
+    cur_csv.close()
+    conn_csv.close()
+
+    cur_orph.close()
+    conn_orph.close()
+
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
     print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
 
+
 if __name__ == "__main__":
-    main()
+    rtc_table = "repo_title_category"
+    open_table = "open_prs"
+    org_string = "docs"
+    main("docs", "opentelekomcloud-docs", rtc_table, open_table, org_string)
+    main("docs-swiss", "opentelekomcloud-docs-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss")
