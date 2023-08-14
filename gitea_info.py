@@ -20,6 +20,8 @@ github_token = os.getenv("GITHUB_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
+db_csv = os.getenv("DB_CSV")
+db_orph = os.getenv("DB_ORPH")
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -27,7 +29,7 @@ db_password = os.getenv("DB_PASSWORD")
 def check_env_variables():
     required_env_vars = [
         "GITHUB_TOKEN", "DB_HOST", "DB_PORT",
-        "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
+        "DB_CSV", "DB_ORPH", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
     ]
     for var in required_env_vars:
         if os.getenv(var) is None:
@@ -471,7 +473,7 @@ def main(org, gh_org, rtctable, opentable, string):
     check_env_variables()
     csv_erase()
 
-    conn_csv = connect_to_db("csv")
+    conn_csv = connect_to_db(db_csv)
     cur_csv = conn_csv.cursor()
 
     g = Github(github_token)
@@ -492,7 +494,7 @@ def main(org, gh_org, rtctable, opentable, string):
     update_service_titles(cur_csv, rtctable)
     add_squad_column(cur_csv, rtctable)
 
-    conn_orph = connect_to_db("orph")
+    conn_orph = connect_to_db(db_orph)
     cur_orph = conn_orph.cursor()
 
     cur_orph.execute(f"DROP TABLE IF EXISTS {opentable}")
