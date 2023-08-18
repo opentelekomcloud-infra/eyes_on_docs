@@ -13,13 +13,10 @@ start_time = time.time()
 print("**LAST COMMIT INFO SCRIPT IS RUNNING**")
 
 github_token = os.getenv("GITHUB_TOKEN")
-g = Github(github_token)
-
-org = g.get_organization("opentelekomcloud-docs")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_NAME")
+db_name = os.getenv("DB_CSV")  # Here we're using main postgres db since we don't need orphan PRs
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -34,8 +31,8 @@ def check_env_variables():
             raise Exception(f"Missing environment variable: {var}")
 
 
-def connect_to_db():
-    print("Connecting to Postgres...")
+def connect_to_db(db_name):
+    print(f"Connecting to Postgres ({db_name})...")
     try:
         return psycopg2.connect(
             host=db_host,
@@ -69,15 +66,20 @@ def create_commits_table(conn, cur, table_name):
 
 
 def get_last_commit_url(github_repo, git_repo, path):
+    gh_repo = github_repo.full_name
+    print("GITHUB REPO NAME-----------------------------------", gh_repo)
     try:
         last_commit_sha = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%H', '--', f':(exclude)**/conf.py', path], cwd=git_repo.working_dir).decode().strip()
-        last_commit_url = f"https://github.com/{github_repo.full_name}/commit/{last_commit_sha}"
+        print("LAST COMMIT SHA___________", last_commit_sha)
+        last_commit_url = f"https://github.com/{gh_repo}/commit/{last_commit_sha}"
+        print("LAST COMMIT URL--------------------------", last_commit_url)
         return last_commit_url
     except Exception as e:
         print(f"SHA: an error occurred while getting last commit URL: {e}")
 
-def get_last_commit(cur, conn, doctype):
-    print("Gathering last commit info...")
+
+def get_last_commit(org, conn, cur, doctype, string, table_name):
+    print(f"Gathering last commit info for {string}...")
     exclude_repos = ["docsportal", "doc-exports", "docs_on_docs", ".github", "presentations", "sandbox", "security", "template"]
     for repo in org.get_repos():
         if repo.name in exclude_repos:
@@ -92,7 +94,7 @@ def get_last_commit(cur, conn, doctype):
                 try:
                     last_commit_url = get_last_commit_url(repo, cloned_repo, path)
                     last_commit_str = cloned_repo.git.log('-1', '--pretty=format:%cd', '--date=short', f':(exclude)*conf.py {path}')
-                    last_commit = datetime.strptime(last_commit_str, '%Y-%m-%d')  # convert string to datetime
+                    last_commit = datetime.strptime(last_commit_str, '%Y-%m-%d')
                     now = datetime.utcnow()
                     duration = now - last_commit
                     duration_days = duration.days
@@ -102,7 +104,7 @@ def get_last_commit(cur, conn, doctype):
                         doc_type = "API"
                     service_name = repo.name
                     cur.execute(
-                        'INSERT INTO last_update_commit ("Service Name", "Doc Type", "Last commit at", "Days passed", "Commit URL") VALUES (%s, %s, %s, %s, %s);',
+                        f'INSERT INTO {table_name} ("Service Name", "Doc Type", "Last commit at", "Days passed", "Commit URL") VALUES (%s, %s, %s, %s, %s);',
                         (service_name, doc_type, last_commit_str, duration_days, last_commit_url,))
                     conn.commit()
                 except Exception as e:
@@ -115,26 +117,26 @@ def get_last_commit(cur, conn, doctype):
             shutil.rmtree(tmp_dir)
 
 
-def update_squad_and_title(conn, cur):
+def update_squad_and_title(conn, cur, table_name, rtc):
     print("Updating squads and titles...")
     try:
-        cur.execute("SELECT * FROM last_update_commit;")
+        cur.execute(f"SELECT * FROM {table_name};")
         open_issues_rows = cur.fetchall()
 
         for row in open_issues_rows:
             cur.execute(
-                """UPDATE last_update_commit
+                f"""UPDATE {table_name}
                     SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
-                    FROM repo_title_category AS rtc
-                    WHERE last_update_commit."Service Name" = rtc."Repository"
-                    AND last_update_commit.id = %s;""",
+                    FROM {rtc} AS rtc
+                    WHERE {table_name}."Service Name" = rtc."Repository"
+                    AND {table_name}.id = %s;""",
                 (row[0],)
             )
             cur.execute(
-                """UPDATE last_update_commit
+                f"""UPDATE {table_name}
                     SET "Squad" = 'Other'
-                    WHERE last_update_commit."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
-                    AND last_update_commit.id = %s;""",
+                    WHERE {table_name}."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
+                    AND {table_name}.id = %s;""",
                 (row[0],)
             )
             conn.commit()
@@ -144,24 +146,31 @@ def update_squad_and_title(conn, cur):
         conn.rollback()
 
 
-def main():
+def main(gorg, table_name, rtc, gh_str):
     check_env_variables()
-
-    conn = connect_to_db()
+    g = Github(github_token)
+    org = g.get_organization(gorg)
+    conn = connect_to_db(db_name)
     cur = conn.cursor()
-    cur.execute("DROP TABLE IF EXISTS last_update_commit")
-    create_commits_table(conn, cur, "last_update_commit")
-    print(f"Searching for a most recent commit in umn/source...")
-    get_last_commit(cur, conn, "umn/source")
-    print(f"Searching for a most recent commit in api-ref/source...")
-    get_last_commit(cur, conn, "api-ref/source")
-    update_squad_and_title(conn, cur)
+    cur.execute(f"DROP TABLE IF EXISTS {table_name}")
+    create_commits_table(conn, cur, table_name)
+    print("Searching for a most recent commit in umn/source...")
+    get_last_commit(org, conn, cur, "umn/source", gh_str, table_name)
+    print("Searching for a most recent commit in api-ref/source...")
+    get_last_commit(org, conn, cur, "api-ref/source", gh_str, table_name)
+    update_squad_and_title(conn, cur, table_name, rtc)
     conn.commit()
+
+
+if __name__ == "__main__":
+    gh_org_str = "opentelekomcloud-docs"
+    commit_table = "last_update_commit"
+    rtc_table = "repo_title_category"
+
+    main(gh_org_str, commit_table, rtc_table, gh_org_str)
+    main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss")
+
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
     print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
-
-
-if __name__ == "__main__":
-    main()
