@@ -6,9 +6,9 @@ import psycopg2
 
 BASE_URL = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 
-TOKEN = os.getenv("GITEA_TOKEN")
+gitea_token = os.getenv("GITEA_TOKEN")
 headers = {
-    "Authorization": f"token {TOKEN}"
+    "Authorization": f"token {gitea_token}"
 }
 
 db_host = os.getenv("DB_HOST")
@@ -69,7 +69,6 @@ def create_doc_table(conn, cur, table_name):
 
 
 def get_pretty_category_names(base_dir, category_dir):
-    """Retrieve pretty names for categories."""
     response = requests.get(f"{BASE_URL}{category_dir}", headers=headers)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
@@ -91,7 +90,6 @@ def get_pretty_category_names(base_dir, category_dir):
 
 
 def get_service_categories(base_dir, category_dir, services_dir):
-    """Fetch all .yaml files from a Gitea directory and return their data after mapping to pretty category names."""
     pretty_names = get_pretty_category_names(base_dir, category_dir)
 
     response = requests.get(f"{BASE_URL}{services_dir}", headers=headers)
@@ -118,7 +116,6 @@ def get_service_categories(base_dir, category_dir, services_dir):
 
 
 def get_docs_info(base_dir, doc_dir):
-    """Fetch all .yaml files from a Gitea directory and return their data."""
     response = requests.get(f"{BASE_URL}{doc_dir}", headers=headers)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
@@ -140,7 +137,6 @@ def get_docs_info(base_dir, doc_dir):
 
 
 def insert_services_data(item, conn, cur, table_name):
-    """Insert gathered services metadata and its categories into Postgres table."""
     if not isinstance(item, dict):
         print(f"Unexpected data type: {type(item)}, value: {item}")
         return
@@ -159,7 +155,6 @@ def insert_services_data(item, conn, cur, table_name):
 
 
 def insert_docs_data(item, conn, cur, table_name):
-    """Insert gathered docs metadata and its types into Postgres table."""
     if not isinstance(item, dict):
         print(f"Unexpected data type: {type(item)}, value: {item}")
         return

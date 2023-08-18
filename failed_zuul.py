@@ -13,13 +13,12 @@ print("**FAILED PRS SCRIPT IS RUNNING**")
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
 session.debug = False
-org = "docs"
 gitea_token = os.getenv("GITEA_TOKEN")
 github_token = os.getenv("GITHUB_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_NAME")
+db_name = os.getenv("DB_CSV")  # here we're using main postgres db since we don't need orphan PRs
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -34,8 +33,8 @@ def check_env_variables():
             raise Exception(f"Missing environment variable: {var}")
 
 
-def connect_to_db():
-    print("Connecting to Postgres...")
+def connect_to_db(db_name):
+    print(f"Connecting to Postgres ({db_name})...")
     try:
         return psycopg2.connect(
             host=db_host,
@@ -45,7 +44,7 @@ def connect_to_db():
             password=db_password
         )
     except psycopg2.Error as e:
-        print(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        print(f"Connecting to Postgres: an error occurred while trying to connect to the database {db_name}: {e}")
         return None
 
 
@@ -114,21 +113,21 @@ def extract_number_from_body(text):
     return None
 
 
-def get_f_pr_commits(repo, f_pr_number, gitea_token):
+def get_f_pr_commits(org, repo, f_pr_number, gitea_token):
     try:
         zuul_url = None
         status = None
         created_at = None
         days_passed = None
 
-        pull_request_resp = session.get(f"{gitea_api_endpoint}/repos/docs/{repo}/pulls/{f_pr_number}/commits?token={gitea_token}")
-        pull_request_resp.raise_for_status()  # Raise an exception if the response contains an HTTP error status.
+        pull_request_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{f_pr_number}/commits?token={gitea_token}")
+        pull_request_resp.raise_for_status()
 
         f_pr_info = json.loads(pull_request_resp.content.decode("utf-8"))
 
         if len(f_pr_info) > 0:
             f_commit_sha = f_pr_info[0]["sha"]
-            commit_status_resp = session.get(f"{gitea_api_endpoint}/repos/docs/{repo}/statuses/{f_commit_sha}?token={gitea_token}")
+            commit_status_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/statuses/{f_commit_sha}?token={gitea_token}")
             commit_status_resp.raise_for_status()
 
             commit_info = json.loads(commit_status_resp.content.decode("utf-8"))
@@ -143,10 +142,10 @@ def get_f_pr_commits(repo, f_pr_number, gitea_token):
             return zuul_url, status, created_at, days_passed
 
     except requests.exceptions.RequestException as e:
-        print(f"Get failed PR commits: an error occurred while trying to get pull requests of {repo} repo: {e}")
+        print(f"Get failed PR commits: an error occurred while trying to get pull requests of {repo} repo for {org} org: {e}")
 
 
-def get_failed_prs(repo, gitea_token, conn, cur):
+def get_failed_prs(org, repo, gitea_token, conn, cur, table_name):
     try:
         if repo != "doc-exports" and repo != "dsf":
             page = 1
@@ -174,11 +173,11 @@ def get_failed_prs(repo, gitea_token, conn, cur):
                                     title = pull_req["title"]
                                     f_pr_url = pull_req["url"]
                                     f_pr_state = pull_req["state"]
-                                    zuul_url, status, created_at, days_passed = get_f_pr_commits(repo, f_pr_number, gitea_token)
+                                    zuul_url, status, created_at, days_passed = get_f_pr_commits(org, repo, f_pr_number, gitea_token)
                                 try:
                                     if all(item is not None for item in [zuul_url, status, created_at, days_passed]):
-                                        cur.execute("""
-                                            INSERT INTO public.failed_zuul_prs
+                                        cur.execute(f"""
+                                            INSERT INTO public.{table_name}
                                             ("Service Name", "Failed PR Title", "Failed PR URL", "Squad", "Failed PR State", "Zuul URL", "Zuul Check Status", "Days Passed",  "Parent PR Number")
                                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                                         """,
@@ -186,35 +185,37 @@ def get_failed_prs(repo, gitea_token, conn, cur):
                                                     )
                                         conn.commit()
                                 except Exception as e:
-                                    print(f"Failed PRs: an error occurred while inserting into the failed_zuul_prs table: {e}")
+                                    print(f"Failed PRs: an error occurred while inserting into {table_name} table: {e}")
                             else:
                                 continue
+                    elif org == "docs-swiss" and repo_resp.status_code != 200:
+                        break
                     page += 1
 
     except Exception as e:
         print('Failed PRs: an error occurred:', e)
 
 
-def update_squad_and_title(conn, cur):
-    print("Updating squads and titles...")
+def update_squad_and_title(conn, cur, table_name, rtc):
+    print(f"Updating squads and titles with {rtc}...")
     try:
-        cur.execute("SELECT * FROM failed_zuul_prs;")
+        cur.execute(f"SELECT * FROM {table_name};")
         failed_prs_rows = cur.fetchall()
 
         for row in failed_prs_rows:
             cur.execute(
-                """UPDATE failed_zuul_prs
+                f"""UPDATE {table_name}
                     SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
-                    FROM repo_title_category AS rtc
-                    WHERE failed_zuul_prs."Service Name" = rtc."Repository"
-                    AND failed_zuul_prs.id = %s;""",
+                    FROM {rtc} AS rtc
+                    WHERE {table_name}."Service Name" = rtc."Repository"
+                    AND {table_name}.id = %s;""",
                 (row[0],)
             )
             cur.execute(
-                """UPDATE failed_zuul_prs
+                f"""UPDATE {table_name}
                     SET "Squad" = 'Other'
-                    WHERE failed_zuul_prs."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
-                    AND failed_zuul_prs.id = %s;""",
+                    WHERE {table_name}."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
+                    AND {table_name}.id = %s;""",
                 (row[0],)
             )
             conn.commit()
@@ -224,33 +225,40 @@ def update_squad_and_title(conn, cur):
         conn.rollback()
 
 
-def main():
+def main(org, table_name, rtc):
     check_env_variables()
 
-    conn = connect_to_db()
+    conn = connect_to_db(db_name)
     cur = conn.cursor()
 
-    cur.execute("DROP TABLE IF EXISTS failed_zuul_prs")
+    cur.execute(f"DROP TABLE IF EXISTS {table_name}")
     conn.commit()
 
-    create_prs_table(conn, cur, "failed_zuul_prs")
+    create_prs_table(conn, cur, table_name)
 
     repos = get_repos(org, gitea_token)
 
     print("Gathering PRs info...")
     for repo in repos:
-        get_failed_prs(repo, gitea_token, conn, cur)
+        get_failed_prs(org, repo, gitea_token, conn, cur, table_name)
 
-    update_squad_and_title(conn, cur)
+    update_squad_and_title(conn, cur, table_name, rtc)
 
     cur.close()
     conn.close()
+
+
+if __name__ == "__main__":
+    org_string = "docs"
+    failed_table = "failed_zuul_prs"
+    rtc_table = "repo_title_category"
+
+    main(org_string, failed_table, rtc_table)
+    main(f"{org_string}-swiss", f"{failed_table}_swiss", f"{rtc_table}_swiss")
+
 
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
     print(f"Script failed_zuul.py executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
 
-
-if __name__ == "__main__":
-    main()

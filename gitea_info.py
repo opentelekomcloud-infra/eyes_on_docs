@@ -20,8 +20,8 @@ github_token = os.getenv("GITHUB_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-db_csv = os.getenv("DB_CSV")
-db_orph = os.getenv("DB_ORPH")
+db_csv = os.getenv("DB_CSV")  # this is main postgres db, where open PRs tables for both public and hybrid clouds are stored
+db_orph = os.getenv("DB_ORPH")  # this is dedicated db for orphans PRs (for both clouds) tables. This is so because grafana dashboards query limitations
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -514,15 +514,16 @@ def main(org, gh_org, rtctable, opentable, string):
     cur_orph.close()
     conn_orph.close()
 
-    end_time = time.time()
-    execution_time = end_time - start_time
-    minutes, seconds = divmod(execution_time, 60)
-    print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
-
 
 if __name__ == "__main__":
     rtc_table = "repo_title_category"
     open_table = "open_prs"
     org_string = "docs"
-    main("docs", "opentelekomcloud-docs", rtc_table, open_table, org_string)
-    main("docs-swiss", "opentelekomcloud-docs-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss")
+    gh_org_string = "opentelekomcloud-docs"
+    main(org_string, gh_org_string, rtc_table, open_table, org_string)
+    main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss")
+
+    end_time = time.time()
+    execution_time = end_time - start_time
+    minutes, seconds = divmod(execution_time, 60)
+    print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
