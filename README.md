@@ -1,6 +1,6 @@
 grafana-docs-monitoring
 =======================
-Scripts gathering HC3.0 PRs, issues and docs info from Github and Gitea. Scripts are works both for OTC and Swiss clouds in a one run. Data store in two Postgres databases: **_CSV_** is for a service tables, open PRs, failed Zuul PRs, issues and commits updates, **_ORPH_** is a dedicated DB special for orphan PRs
+Scripts gathering HC3.0 PRs, issues and docs info from Github and Gitea. Scripts are works both for OTC and Swiss clouds in a one run. Data store in three Postgres databases: **_CSV_** is for a service tables and open PRs, failed Zuul PRs, issues and commits updates, **_ORPH_** is a dedicated DB special for orphan PRs
 
 1) **otc_services_dict.py:** service script gathering metadata for service, its full names, categories and types. Should be run first, since all of the following scripts are relay on it in terms of repo names, service titles and squad names.
 2) **gitea_info.py:** this script is using for open & orphan PRs data collecting
