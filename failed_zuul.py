@@ -18,7 +18,8 @@ github_token = os.getenv("GITHUB_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_CSV")  # here we're using main postgres db since we don't need orphan PRs
+db_name = os.getenv("DB_ZUUL")  # here we're using dedicated postgres db 'zuul' since Failed Zuul PRs panel should be placed on a same dashboard such as Open PRs
+db_csv = os.getenv("DB_CSV")  # here rtc service table is located
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -48,9 +49,9 @@ def connect_to_db(db_name):
         return None
 
 
-def create_prs_table(conn, cur, table_name):
+def create_prs_table(conn_zuul, cur_zuul, table_name):
     try:
-        cur.execute(
+        cur_zuul.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
             id SERIAL PRIMARY KEY,
             "Service Name" VARCHAR(255),
@@ -65,7 +66,7 @@ def create_prs_table(conn, cur, table_name):
             "Parent PR Number" INT
             );'''
         )
-        conn.commit()
+        conn_zuul.commit()
         print(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
         print(f"Create table: an error occurred while trying to create a table {table_name} in the database: {e}")
@@ -145,7 +146,7 @@ def get_f_pr_commits(org, repo, f_pr_number, gitea_token):
         print(f"Get failed PR commits: an error occurred while trying to get pull requests of {repo} repo for {org} org: {e}")
 
 
-def get_failed_prs(org, repo, gitea_token, conn, cur, table_name):
+def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
     try:
         if repo != "doc-exports" and repo != "dsf":
             page = 1
@@ -176,14 +177,14 @@ def get_failed_prs(org, repo, gitea_token, conn, cur, table_name):
                                     zuul_url, status, created_at, days_passed = get_f_pr_commits(org, repo, f_pr_number, gitea_token)
                                 try:
                                     if all(item is not None for item in [zuul_url, status, created_at, days_passed]):
-                                        cur.execute(f"""
+                                        cur_zuul.execute(f"""
                                             INSERT INTO public.{table_name}
                                             ("Service Name", "Failed PR Title", "Failed PR URL", "Squad", "Failed PR State", "Zuul URL", "Zuul Check Status", "Days Passed",  "Parent PR Number")
                                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                                         """,
                                         (service_name, title, f_pr_url, squad, f_pr_state, zuul_url, status, days_passed, f_par_pr_num)
                                                     )
-                                        conn.commit()
+                                        conn_zuul.commit()
                                 except Exception as e:
                                     print(f"Failed PRs: an error occurred while inserting into {table_name} table: {e}")
                             else:
@@ -196,66 +197,81 @@ def get_failed_prs(org, repo, gitea_token, conn, cur, table_name):
         print('Failed PRs: an error occurred:', e)
 
 
-def update_squad_and_title(conn, cur, table_name, rtc):
-    print(f"Updating squads and titles with {rtc}...")
+def update_squad_and_title(cur_dict, conn_table, cur_table, rtctable, opentable):
+    print(f"Updating squads and titles in {opentable}...")
     try:
-        cur.execute(f"SELECT * FROM {table_name};")
-        failed_prs_rows = cur.fetchall()
+        cur_table.execute(f"SELECT * FROM {opentable};")
+        failed_prs_rows = cur_table.fetchall()
 
         for row in failed_prs_rows:
-            cur.execute(
-                f"""UPDATE {table_name}
-                    SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
-                    FROM {rtc} AS rtc
-                    WHERE {table_name}."Service Name" = rtc."Repository"
-                    AND {table_name}.id = %s;""",
-                (row[0],)
+            service_name_index = 1
+            id_index = 0
+
+            cur_dict.execute(
+                f"""SELECT "Title", "Category"
+                    FROM {rtctable}
+                    WHERE "Repository" = %s;""",
+                (row[service_name_index],)
             )
-            cur.execute(
-                f"""UPDATE {table_name}
-                    SET "Squad" = 'Other'
-                    WHERE {table_name}."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
-                    AND {table_name}.id = %s;""",
-                (row[0],)
-            )
-            conn.commit()
+            rtc_row = cur_dict.fetchone()
+
+            if rtc_row:
+                cur_table.execute(
+                    f"""UPDATE {opentable}
+                        SET "Service Name" = %s, "Squad" = %s
+                        WHERE id = %s;""",
+                    (rtc_row[0], rtc_row[1], row[id_index])
+                )
+
+            if row[service_name_index] in ('doc-exports', 'docs_on_docs', 'docsportal'):
+                cur_table.execute(
+                    f"""UPDATE {opentable}
+                        SET "Squad" = 'Other'
+                        WHERE id = %s;""",
+                    (row[id_index],)
+                )
+
+            conn_table.commit()
 
     except Exception as e:
         print(f"Error updating squad and title: {e}")
-        conn.rollback()
+        conn_table.rollback()
 
 
 def main(org, table_name, rtc):
     check_env_variables()
 
-    conn = connect_to_db(db_name)
-    cur = conn.cursor()
+    conn_zuul = connect_to_db(db_name)
+    cur_zuul = conn_zuul.cursor()
+    conn_csv = connect_to_db(db_csv)
+    cur_csv = conn_csv.cursor()
 
-    cur.execute(f"DROP TABLE IF EXISTS {table_name}")
-    conn.commit()
+    cur_csv.execute(f"DROP TABLE IF EXISTS {table_name}")
+    conn_csv.commit()
 
-    create_prs_table(conn, cur, table_name)
+    create_prs_table(conn_zuul, cur_zuul, table_name)
 
     repos = get_repos(org, gitea_token)
 
     print("Gathering PRs info...")
     for repo in repos:
-        get_failed_prs(org, repo, gitea_token, conn, cur, table_name)
+        get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name)
 
-    update_squad_and_title(conn, cur, table_name, rtc)
+    update_squad_and_title(cur_csv, conn_zuul, cur_zuul, rtc, table_name)
 
-    cur.close()
-    conn.close()
+    cur_csv.close()
+    conn_csv.close()
+    cur_zuul.close()
+    conn_zuul.close()
 
 
 if __name__ == "__main__":
     org_string = "docs"
-    failed_table = "failed_zuul_prs"
+    failed_table = "open_prs"
     rtc_table = "repo_title_category"
 
     main(org_string, failed_table, rtc_table)
     main(f"{org_string}-swiss", f"{failed_table}_swiss", f"{rtc_table}_swiss")
-
 
     end_time = time.time()
     execution_time = end_time - start_time
