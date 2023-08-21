@@ -440,33 +440,45 @@ def get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string):
         print('Github PRs: an error occurred:', e)
 
 
-def update_squad_and_title(conn_csv, cur_csv, rtctable, opentable):
-    print("Updating squads and titles...")
+def update_squad_and_title(cur_csv, conn_table, cur_table, rtctable, opentable):
+    print(f"Updating squads and titles in {opentable}...")
     try:
-        cur_csv.execute("SELECT * FROM open_prs;")
-        open_issues_rows = cur_csv.fetchall()
+        cur_table.execute(f"SELECT * FROM {opentable};")  # Use Zuul cursor here
+        failed_prs_rows = cur_table.fetchall()
 
-        for row in open_issues_rows:
+        for row in failed_prs_rows:
+            service_name_index = 1
+            id_index = 0
+
             cur_csv.execute(
-                f"""UPDATE {opentable}
-                    SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
-                    FROM {rtctable} AS rtc
-                    WHERE {opentable}."Service Name" = rtc."Repository"
-                    AND {opentable}.id = %s;""",
-                (row[0],)
+                f"""SELECT "Title", "Category"
+                    FROM {rtctable}
+                    WHERE "Repository" = %s;""",
+                (str(row[service_name_index]),)
             )
-            cur_csv.execute(
-                f"""UPDATE {opentable}
-                    SET "Squad" = 'Other'
-                    WHERE {opentable}."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
-                    AND {opentable}.id = %s;""",
-                (row[0],)
-            )
-            conn_csv.commit()
+            rtc_row = cur_csv.fetchone()
+
+            if rtc_row:
+                cur_table.execute(
+                    f"""UPDATE {opentable}
+                        SET "Service Name" = %s, "Squad" = %s
+                        WHERE id = %s;""",
+                    (rtc_row[0], rtc_row[1], row[id_index])
+                )
+
+            if row[service_name_index] in ('doc-exports', 'docs_on_docs', 'docsportal'):
+                cur_table.execute(
+                    f"""UPDATE {opentable}
+                        SET "Squad" = 'Other'
+                        WHERE id = %s;""",
+                    (row[id_index],)
+                )
+
+            conn_table.commit()
 
     except Exception as e:
         print(f"Error updating squad and title: {e}")
-        conn_csv.rollback()
+        conn_table.rollback()
 
 
 def main(org, gh_org, rtctable, opentable, string):
@@ -475,7 +487,8 @@ def main(org, gh_org, rtctable, opentable, string):
 
     conn_csv = connect_to_db(db_csv)
     cur_csv = conn_csv.cursor()
-
+    conn_orph = connect_to_db(db_orph)
+    cur_orph = conn_orph.cursor()
     g = Github(github_token)
     github_org = g.get_organization(gh_org)
 
@@ -488,29 +501,23 @@ def main(org, gh_org, rtctable, opentable, string):
     print("Gathering parent PRs...")
     for repo in repos:
         get_parent_pr(org, repo)
-
     get_pull_requests(org, "doc-exports")
 
     update_service_titles(cur_csv, rtctable)
     add_squad_column(cur_csv, rtctable)
 
-    conn_orph = connect_to_db(db_orph)
-    cur_orph = conn_orph.cursor()
-
     cur_orph.execute(f"DROP TABLE IF EXISTS {opentable}")
     conn_orph.commit()
-
     create_prs_table(conn_orph, cur_orph, opentable)
     compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable)
-
     csv_erase()
 
     get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string)
-    update_squad_and_title(conn_csv, cur_csv, rtctable, opentable)
+
+    update_squad_and_title(cur_csv, conn_orph, cur_orph, rtctable, opentable)
 
     cur_csv.close()
     conn_csv.close()
-
     cur_orph.close()
     conn_orph.close()
 
