@@ -263,7 +263,6 @@ def main(org, table_name, rtc):
     cur_zuul.close()
     conn_zuul.close()
 
-
 if __name__ == "__main__":
     org_string = "docs"
     failed_table = "open_prs"
@@ -271,6 +270,16 @@ if __name__ == "__main__":
 
     main(org_string, failed_table, rtc_table)
     main(f"{org_string}-swiss", f"{failed_table}_swiss", f"{rtc_table}_swiss")
+
+
+if __name__ == "__main__":
+    org_string = "docs"
+    failed_table = "failed_zuul_prs"
+    rtc_table = "repo_title_category"
+
+    main(org_string, failed_table, rtc_table)
+    main(f"{org_string}-swiss", f"{failed_table}_swiss", f"{rtc_table}_swiss")
+
 
     end_time = time.time()
     execution_time = end_time - start_time
