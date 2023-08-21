@@ -147,6 +147,7 @@ def get_f_pr_commits(org, repo, f_pr_number, gitea_token):
 
 
 def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
+
     try:
         if repo != "doc-exports" and repo != "dsf":
             page = 1
@@ -178,6 +179,7 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
                                 try:
                                     if all(item is not None for item in [zuul_url, status, created_at, days_passed]):
                                         cur_zuul.execute(f"""
+
                                             INSERT INTO public.{table_name}
                                             ("Service Name", "Failed PR Title", "Failed PR URL", "Squad", "Failed PR State", "Zuul URL", "Zuul Check Status", "Days Passed",  "Parent PR Number")
                                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -272,6 +274,16 @@ if __name__ == "__main__":
 
     main(org_string, failed_table, rtc_table)
     main(f"{org_string}-swiss", f"{failed_table}_swiss", f"{rtc_table}_swiss")
+
+
+if __name__ == "__main__":
+    org_string = "docs"
+    failed_table = "failed_zuul_prs"
+    rtc_table = "repo_title_category"
+
+    main(org_string, failed_table, rtc_table)
+    main(f"{org_string}-swiss", f"{failed_table}_swiss", f"{rtc_table}_swiss")
+
 
     end_time = time.time()
     execution_time = end_time - start_time
