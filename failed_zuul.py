@@ -232,6 +232,7 @@ def update_squad_and_title(cur_dict, conn_table, cur_table, rtctable, opentable)
                 )
 
             conn_table.commit()
+
     except Exception as e:
         print(f"Error updating squad and title: {e}")
         conn_table.rollback()
