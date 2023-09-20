@@ -15,15 +15,13 @@ gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
 session.debug = False
 
-gitea_org = "docs"
-github_org = "opentelekomcloud-docs"
-
 gitea_token = os.getenv("GITEA_TOKEN")
 github_token = os.getenv("GITHUB_TOKEN")
+github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_NAME")
+db_name = os.getenv("DB_CSV")  # here we're using main postgres table since we don't need orphan PRs
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -38,8 +36,8 @@ def check_env_variables():
             raise Exception(f"Missing environment variable: {var}")
 
 
-def connect_to_db():
-    print("Connecting to Postgres...")
+def connect_to_db(db_name):
+    print(f"Connecting to Postgres {db_name}...")
     try:
         return psycopg2.connect(
             host=db_host,
@@ -49,14 +47,14 @@ def connect_to_db():
             password=db_password
         )
     except psycopg2.Error as e:
-        print(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        print(f"Connecting to Postgres: an error occurred while trying to connect to the database {db_name}: {e}")
         return None
 
 
-def create_open_issues_table(conn, cur):
+def create_open_issues_table(conn, cur, table_name):
     try:
         cur.execute(
-            '''CREATE TABLE IF NOT EXISTS open_issues (
+            f'''CREATE TABLE IF NOT EXISTS {table_name} (
             id SERIAL PRIMARY KEY,
             "Environment" VARCHAR(255),
             "Service Name" VARCHAR(255),
@@ -71,13 +69,13 @@ def create_open_issues_table(conn, cur):
             );'''
         )
         conn.commit()
-        print(f"Table open_issues has been created successfully")
+        print(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
-        print(f"Tables creating: an error occurred while trying to create a table open_issues in the database: {e}")
+        print(f"Tables creating: an error occurred while trying to create a table {table_name} in the database {db_name}: {e}")
 
 
-def get_gitea_issues(gitea_token):
-    print("Gathering Gitea issues...")
+def get_gitea_issues(gitea_token, gitea_org):
+    print(f"Gathering Gitea issues for {gitea_org}...")
     gitea_issues = []
     page = 1
     while True:
@@ -85,7 +83,7 @@ def get_gitea_issues(gitea_token):
             repos_resp = requests.get(f"{gitea_api_endpoint}/repos/issues/search?state=open&owner={gitea_org}&page={page}&limit=1000&token={gitea_token}")
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Gitea issues: an error occurred while trying to get Gitea issues: {e}")
+            print(f"Gitea issues: an error occurred while trying to get Gitea issues for {gitea_org}: {e}")
             break
 
         try:
@@ -105,18 +103,18 @@ def get_gitea_issues(gitea_token):
     return gitea_issues
 
 
-def get_github_issues(github_token, repo_names):
-    print("Gathering Github issues...")
+def get_github_issues(github_token, repo_names, gh_org):
+    print(f"Gathering Github issues for {gh_org}...")
     headers = {"Authorization": f"Bearer {github_token}"}
     github_issues = []
     for repo in repo_names:
         try:
-            url = f"https://api.github.com/repos/{github_org}/{repo}/issues"
+            url = f"https://api.github.com/repos/{gh_org}/{repo}/issues"
             params = {"state": "open", "filter": "all"}
             repos_resp = requests.get(url, headers=headers, params=params)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Github issues: an error occurred while trying to get Github issues for repo {repo}: {e}")
+            print(f"Github issues: an error occurred while trying to get Github issues for repo {repo} in {gh_org} org: {e}")
             continue
 
         try:
@@ -129,8 +127,8 @@ def get_github_issues(github_token, repo_names):
     return github_issues
 
 
-def get_issues_table(gitea_issues, github_issues, cur, conn):
-    print("Posting data to Postgres...")
+def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name):
+    print(f"Posting data to Postgres ({db_name})...")
     try:
         for tea in gitea_issues:
             environment = "Gitea"
@@ -156,14 +154,14 @@ def get_issues_table(gitea_issues, github_issues, cur, conn):
                 assignees = ', '.join([assignee['login'] for assignee in tea['assignees']])
             else:
                 assignees = ''
-            cur.execute('INSERT INTO open_issues ("Environment", "Service Name", "Squad", "Issue Number", "Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+            cur.execute(f'INSERT INTO {table_name} ("Environment", "Service Name", "Squad", "Issue Number", "Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
                         (environment, service_name, squad, number, url, user, created_at, duration_days, comments, assignees))
             conn.commit()
     except Exception as e:
         print(f"Issues table: an error occurred while posting data to Postgres: {e}")
         conn.rollback()
 
-    service_pattern = re.compile(r"(?P<service_name>(?<=\/opentelekomcloud-docs\/)([^\/]+)(?=\/))")
+    service_pattern = re.compile(rf"(?<={gh_org}\/).([^\/]+)")
     for hub in github_issues:
         if 'pull_request' in hub:
             continue
@@ -174,7 +172,7 @@ def get_issues_table(gitea_issues, github_issues, cur, conn):
             service_match = gh
             break
         if service_match is not None:
-            service_name = service_match.group("service_name").strip()
+            service_name = service_match.group(0).strip()
             squad = ""
             number = hub['number']
             url = hub['html_url']
@@ -187,70 +185,85 @@ def get_issues_table(gitea_issues, github_issues, cur, conn):
             assignees = ', '.join([assignee['login'] for assignee in hub['assignees']])
 
             try:
-                cur.execute('INSERT INTO open_issues ("Environment", "Service Name", "Squad", "Issue Number", "Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                cur.execute(f'INSERT INTO {table_name} ("Environment", "Service Name", "Squad", "Issue Number", "Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
                             (environment, service_name, squad, number, url, user, created_at, duration_days, comments, assignees))
                 conn.commit()
             except Exception as e:
-                print(f"Issues table: an error occurred while posting data to Postgres: {e}")
+                print(f"Issues table: an error occurred while posting data to table {table_name}: {e}")
                 conn.rollback()
 
 
-def update_squad_and_title(conn, cur):
-    print("Updating squads and titles...")
+def update_squad_and_title(conn, cur, table_name, rtc):
+    print(f"Updating squads and titles in {table_name}...")
     try:
-        cur.execute("SELECT * FROM open_issues;")
+        cur.execute(f"SELECT * FROM {table_name};")
         open_issues_rows = cur.fetchall()
 
         for row in open_issues_rows:
             cur.execute(
-                """UPDATE open_issues
+                f"""UPDATE {table_name}
                     SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
-                    FROM repo_title_category AS rtc
-                    WHERE open_issues."Service Name" = rtc."Repository"
-                    AND open_issues.id = %s;""",
+                    FROM {rtc} AS rtc
+                    WHERE {table_name}."Service Name" = rtc."Repository"
+                    AND {table_name}.id = %s;""",
                 (row[0],)
             )
             cur.execute(
-                """UPDATE open_issues
+                f"""UPDATE {table_name}
                     SET "Squad" = 'Other'
-                    WHERE open_issues."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
-                    AND open_issues.id = %s;""",
+                    WHERE {table_name}."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
+                    AND {table_name}.id = %s;""",
                 (row[0],)
             )
             conn.commit()
 
     except Exception as e:
-        print(f"Error updating squad and title: {e}")
+        print(f"Error updating squad and title for table {table_name}: {e}")
         conn.rollback()
 
 
-def main():
+def main(org, gh_org, table_name, rtc, token):
     check_env_variables()
-    g = Github(github_token)
-    org = g.get_organization("opentelekomcloud-docs")
-    repo_names = [repo.name for repo in org.get_repos()]
-    print(len(repo_names))
+    g = Github(token)
+    github_org = g.get_organization(gh_org)
+    repo_names = [repo.name for repo in github_org.get_repos()]
+    print(len(repo_names), "repos was processed")
 
-    gitea_issues = get_gitea_issues(gitea_token)
-    github_issues = get_github_issues(github_token, repo_names)
-    conn = connect_to_db()
+    gitea_issues = get_gitea_issues(gitea_token, org)
+    github_issues = get_github_issues(github_token, repo_names, gh_org)
+    conn = connect_to_db(db_name)
     cur = conn.cursor()
 
     cur.execute(
-        f'''DROP TABLE IF EXISTS open_issues'''
+        f'''DROP TABLE IF EXISTS {table_name}'''
     )
     conn.commit()
 
-    create_open_issues_table(conn, cur)
-    get_issues_table(gitea_issues, github_issues, cur, conn)
-    update_squad_and_title(conn, cur)
+    create_open_issues_table(conn, cur, table_name)
+    get_issues_table(org, gitea_issues, github_issues, cur, conn, table_name)
+    update_squad_and_title(conn, cur, table_name, rtc)
     conn.close()
+
+
+if __name__ == '__main__':
+    org_string = "docs"
+    gh_org_string = "opentelekomcloud-docs"
+    open_table = "open_issues"
+    rtc_table = "repo_title_category"
+
+    done = False
+    try:
+        main(org_string, gh_org_string, open_table, rtc_table, github_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss", github_token)
+        done = True
+    except:
+        main(org_string, gh_org_string, open_table, rtc_table, github_fallback_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss", github_fallback_token)
+        done = True
+    if done:
+        print("Github operations successfully done!")
 
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
     print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
-
-
-if __name__ == '__main__':
-    main()

@@ -17,11 +17,12 @@ session = requests.Session()
 session.debug = False
 gitea_token = os.getenv("GITEA_TOKEN")
 github_token = os.getenv("GITHUB_TOKEN")
+github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-db_csv = os.getenv("DB_CSV")
-db_orph = os.getenv("DB_ORPH")
+db_csv = os.getenv("DB_CSV")  # this is main postgres db, where open PRs tables for both public and hybrid clouds are stored
+db_orph = os.getenv("DB_ORPH")  # this is dedicated db for orphans PRs (for both clouds) tables. This is so because grafana dashboards query limitations
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -440,47 +441,52 @@ def get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string):
         print('Github PRs: an error occurred:', e)
 
 
-def update_squad_and_title(conn_csv, cur_csv, rtctable, opentable):
+def update_squad_and_title(cursors, conns, rtctable, opentable):
     print("Updating squads and titles...")
-    try:
-        cur_csv.execute("SELECT * FROM open_prs;")
-        open_issues_rows = cur_csv.fetchall()
+    for cur in cursors:
+        try:
+            cur.execute(f"SELECT * FROM {opentable};")
+            open_issues_rows = cur.fetchall()
 
-        for row in open_issues_rows:
-            cur_csv.execute(
-                f"""UPDATE {opentable}
-                    SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
-                    FROM {rtctable} AS rtc
-                    WHERE {opentable}."Service Name" = rtc."Repository"
-                    AND {opentable}.id = %s;""",
-                (row[0],)
-            )
-            cur_csv.execute(
-                f"""UPDATE {opentable}
-                    SET "Squad" = 'Other'
-                    WHERE {opentable}."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
-                    AND {opentable}.id = %s;""",
-                (row[0],)
-            )
-            conn_csv.commit()
+            for row in open_issues_rows:
+                cur.execute(
+                    f"""UPDATE {opentable}
+                        SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
+                        FROM {rtctable} AS rtc
+                        WHERE {opentable}."Service Name" = rtc."Repository"
+                        AND {opentable}.id = %s;""",
+                    (row[0],)
+                )
+                cur.execute(
+                    f"""UPDATE {opentable}
+                        SET "Squad" = 'Other'
+                        WHERE {opentable}."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
+                        AND {opentable}.id = %s;""",
+                    (row[0],)
+                )
+                for conn in conns:
+                    conn.commit()
 
-    except Exception as e:
-        print(f"Error updating squad and title: {e}")
-        conn_csv.rollback()
+        except Exception as e:
+            print(f"Error updating squad and title: {e}")
 
 
-def main(org, gh_org, rtctable, opentable, string):
+def main(org, gh_org, rtctable, opentable, string, token):
     check_env_variables()
     csv_erase()
 
     conn_csv = connect_to_db(db_csv)
     cur_csv = conn_csv.cursor()
-
-    g = Github(github_token)
+    conn_orph = connect_to_db(db_orph)
+    cur_orph = conn_orph.cursor()
+    g = Github(token)
     github_org = g.get_organization(gh_org)
 
     cur_csv.execute(f"DROP TABLE IF EXISTS {opentable}")
     conn_csv.commit()
+
+    cursors = [cur_csv, cur_orph]
+    conns = [conn_csv, conn_orph]
 
     create_prs_table(conn_csv, cur_csv, opentable)
 
@@ -488,41 +494,45 @@ def main(org, gh_org, rtctable, opentable, string):
     print("Gathering parent PRs...")
     for repo in repos:
         get_parent_pr(org, repo)
-
     get_pull_requests(org, "doc-exports")
 
     update_service_titles(cur_csv, rtctable)
     add_squad_column(cur_csv, rtctable)
 
-    conn_orph = connect_to_db(db_orph)
-    cur_orph = conn_orph.cursor()
-
     cur_orph.execute(f"DROP TABLE IF EXISTS {opentable}")
     conn_orph.commit()
-
     create_prs_table(conn_orph, cur_orph, opentable)
     compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable)
-
     csv_erase()
 
     get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string)
-    update_squad_and_title(conn_csv, cur_csv, rtctable, opentable)
 
-    cur_csv.close()
-    conn_csv.close()
+    update_squad_and_title(cursors, conns, rtctable, opentable)
 
-    cur_orph.close()
-    conn_orph.close()
-
-    end_time = time.time()
-    execution_time = end_time - start_time
-    minutes, seconds = divmod(execution_time, 60)
-    print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    for conn in conns:
+        conn.close()
 
 
 if __name__ == "__main__":
     rtc_table = "repo_title_category"
     open_table = "open_prs"
     org_string = "docs"
-    main("docs", "opentelekomcloud-docs", rtc_table, open_table, org_string)
-    main("docs-swiss", "opentelekomcloud-docs-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss")
+    gh_org_string = "opentelekomcloud-docs"
+
+    done = False
+
+    try:
+        main(org_string, gh_org_string, rtc_table, open_table, org_string, github_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss", github_token)
+        done = True
+    except:
+        main(org_string, gh_org_string, rtc_table, open_table, org_string, github_fallback_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss", github_fallback_token)
+        done = True
+    if done:
+        print("Github operations successfully done!")
+
+    end_time = time.time()
+    execution_time = end_time - start_time
+    minutes, seconds = divmod(execution_time, 60)
+    print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
