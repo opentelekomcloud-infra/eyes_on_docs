@@ -13,6 +13,7 @@ start_time = time.time()
 print("**LAST COMMIT INFO SCRIPT IS RUNNING**")
 
 github_token = os.getenv("GITHUB_TOKEN")
+github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
@@ -67,12 +68,9 @@ def create_commits_table(conn, cur, table_name):
 
 def get_last_commit_url(github_repo, git_repo, path):
     gh_repo = github_repo.full_name
-    print("GITHUB REPO NAME-----------------------------------", gh_repo)
     try:
         last_commit_sha = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%H', '--', f':(exclude)**/conf.py', path], cwd=git_repo.working_dir).decode().strip()
-        print("LAST COMMIT SHA___________", last_commit_sha)
         last_commit_url = f"https://github.com/{gh_repo}/commit/{last_commit_sha}"
-        print("LAST COMMIT URL--------------------------", last_commit_url)
         return last_commit_url
     except Exception as e:
         print(f"SHA: an error occurred while getting last commit URL: {e}")
@@ -82,6 +80,7 @@ def get_last_commit(org, conn, cur, doctype, string, table_name):
     print(f"Gathering last commit info for {string}...")
     exclude_repos = ["docsportal", "doc-exports", "docs_on_docs", ".github", "presentations", "sandbox", "security", "template"]
     for repo in org.get_repos():
+
         if repo.name in exclude_repos:
             continue
 
@@ -146,9 +145,9 @@ def update_squad_and_title(conn, cur, table_name, rtc):
         conn.rollback()
 
 
-def main(gorg, table_name, rtc, gh_str):
+def main(gorg, table_name, rtc, gh_str, token):
     check_env_variables()
-    g = Github(github_token)
+    g = Github(token)
     org = g.get_organization(gorg)
     conn = connect_to_db(db_name)
     cur = conn.cursor()
@@ -167,8 +166,17 @@ if __name__ == "__main__":
     commit_table = "last_update_commit"
     rtc_table = "repo_title_category"
 
-    main(gh_org_str, commit_table, rtc_table, gh_org_str)
-    main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss")
+    done = False
+    try:
+        main(gh_org_str, commit_table, rtc_table, gh_org_str, github_token)
+        main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss", github_token)
+        done = True
+    except:
+        main(gh_org_str, commit_table, rtc_table, gh_org_str, github_fallback_token)
+        main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss", github_fallback_token)
+        done = True
+    if done:
+        print("Github operations successfully done!")
 
     end_time = time.time()
     execution_time = end_time - start_time

@@ -17,6 +17,7 @@ session.debug = False
 
 gitea_token = os.getenv("GITEA_TOKEN")
 github_token = os.getenv("GITHUB_TOKEN")
+github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
@@ -162,7 +163,6 @@ def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name)
 
     service_pattern = re.compile(rf"(?<={gh_org}\/).([^\/]+)")
     for hub in github_issues:
-        print("GITHUB ISSUE URL------------------------------------", hub['url'])
         if 'pull_request' in hub:
             continue
 
@@ -173,7 +173,6 @@ def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name)
             break
         if service_match is not None:
             service_name = service_match.group(0).strip()
-            print("SERVICE NAME________________________________________", service_name)
             squad = ""
             number = hub['number']
             url = hub['html_url']
@@ -223,9 +222,9 @@ def update_squad_and_title(conn, cur, table_name, rtc):
         conn.rollback()
 
 
-def main(org, gh_org, table_name, rtc):
+def main(org, gh_org, table_name, rtc, token):
     check_env_variables()
-    g = Github(github_token)
+    g = Github(token)
     github_org = g.get_organization(gh_org)
     repo_names = [repo.name for repo in github_org.get_repos()]
     print(len(repo_names), "repos was processed")
@@ -252,8 +251,17 @@ if __name__ == '__main__':
     open_table = "open_issues"
     rtc_table = "repo_title_category"
 
-    main(org_string, gh_org_string, open_table, rtc_table)
-    main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss")
+    done = False
+    try:
+        main(org_string, gh_org_string, open_table, rtc_table, github_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss", github_token)
+        done = True
+    except:
+        main(org_string, gh_org_string, open_table, rtc_table, github_fallback_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss", github_fallback_token)
+        done = True
+    if done:
+        print("Github operations successfully done!")
 
     end_time = time.time()
     execution_time = end_time - start_time

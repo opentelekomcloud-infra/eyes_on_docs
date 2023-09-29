@@ -13,18 +13,20 @@ headers = {
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_CSV")
+db_csv = os.getenv("DB_CSV")
+db_orph = os.getenv("DB_ORPH")
+db_zuul = os.getenv("DB_ZUUL")
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
 
-def connect_to_db(db_name):
-    print(f"Connecting to Postgres ({db_name})...")
+def connect_to_db(db):
+    print(f"Connecting to Postgres ({db})...")
     try:
         return psycopg2.connect(
             host=db_host,
             port=db_port,
-            dbname=db_name,
+            dbname=db,
             user=db_user,
             password=db_password
         )
@@ -33,10 +35,10 @@ def connect_to_db(db_name):
         return None
 
 
-def create_rtc_table(conn, cur, table_name):
+def create_rtc_table(conn_csv, cur_csv, table_name):
     print(f"Creating new service table {table_name}...")
     try:
-        cur.execute(
+        cur_csv.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
             id SERIAL PRIMARY KEY,
             "Repository" VARCHAR(255),
@@ -45,16 +47,16 @@ def create_rtc_table(conn, cur, table_name):
             "Type" VARCHAR(255)
             );'''
         )
-        conn.commit()
+        conn_csv.commit()
     except Exception as e:
         print(f"RTC: an error occurred while trying to create a table: {e}")
         return
 
 
-def create_doc_table(conn, cur, table_name):
+def create_doc_table(conn_csv, cur_csv, table_name):
     print(f"Creating new doc table {table_name}...")
     try:
-        cur.execute(
+        cur_csv.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
             id SERIAL PRIMARY KEY,
             "Service Type" VARCHAR(255),
@@ -63,7 +65,7 @@ def create_doc_table(conn, cur, table_name):
             "Link" VARCHAR(255)
             );'''
         )
-        conn.commit()
+        conn_csv.commit()
     except Exception as e:
         print(f"Doc Table: an error occurred while trying to create a table: {e}")
 
@@ -136,7 +138,7 @@ def get_docs_info(base_dir, doc_dir):
     return all_data
 
 
-def insert_services_data(item, conn, cur, table_name):
+def insert_services_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
         print(f"Unexpected data type: {type(item)}, value: {item}")
         return
@@ -149,12 +151,12 @@ def insert_services_data(item, conn, cur, table_name):
     category = item.get("service_category")
     stype = item.get("service_type")
 
-    cur.execute(insert_query, (repository, title, category, stype))
+    cur_csv.execute(insert_query, (repository, title, category, stype))
 
-    conn.commit()
+    conn_csv.commit()
 
 
-def insert_docs_data(item, conn, cur, table_name):
+def insert_docs_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
         print(f"Unexpected data type: {type(item)}, value: {item}")
         return
@@ -167,53 +169,98 @@ def insert_docs_data(item, conn, cur, table_name):
     dtype = item.get("type")
     link = item.get("link") + "source"
 
-    cur.execute(insert_query, (stype, title, dtype, link))
-    conn.commit()
+    cur_csv.execute(insert_query, (stype, title, dtype, link))
+    conn_csv.commit()
 
 
-def add_obsolete_services(conn, cur):
-    """Add obsolete services and its categories to the Postgres table for public cloud"""
+def add_obsolete_services(conn_csv, cur_csv):
     data_to_insert = [
         {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category": "Other", "service_type": "cdn"},
         {"service_uri": "data-admin-service", "service_title": "Data Admin Service", "service_category": "Other", "service_type": "das"}
     ]
 
     for item in data_to_insert:
-        insert_services_data(item, conn, cur, "repo_title_category")
+        insert_services_data(item, conn_csv, cur_csv, "repo_title_category")
 
 
-def main(base_dir, rtc_table, doc_table):
-    cur.execute(f"DROP TABLE IF EXISTS {rtc_table}, {doc_table}")
-    conn.commit()
+def copy_rtc(cur_csv, cursors, conns, rtctable):
+    print(f"Start copy {rtctable} to other DBs...")
+    try:
+        cur_csv.execute(f"SELECT * FROM {rtctable};")
+    except psycopg2.Error as e:
+        print(f"Error fetching data from {rtctable}: {e}")
+        return
 
+    rows = cur_csv.fetchall()
+    columns = [desc[0] for desc in cur_csv.description]
+    columns_quoted = [f'"{col}"' for col in columns]
+    for conn, cur in zip(conns, cursors):
+        try:
+            cur.execute(
+                f"""CREATE TABLE IF NOT EXISTS {rtctable} (
+            {', '.join(['%s text' % col for col in columns_quoted])}
+            );
+            """)
+            for row in rows:
+                placeholders = ', '.join(['%s'] * len(row))
+                cur.execute(f"INSERT INTO {rtctable} VALUES ({placeholders});", row)
+            conn.commit()
+        except psycopg2.Error as e:
+            print(f"Error copying data to {rtctable} in target DB: {e}")
+            conn.rollback()
+
+
+
+def main(base_dir, rtctable, doctable):
     services_dir = f"{base_dir}otc_metadata/data/services"
     category_dir = f"{base_dir}otc_metadata/data/service_categories"
     doc_dir = f"{base_dir}otc_metadata/data/documents"
 
+    conn_orph = connect_to_db(db_orph)
+    cur_orph = conn_orph.cursor()
+
+    conn_zuul = connect_to_db(db_zuul)
+    cur_zuul = conn_zuul.cursor()
+
+    conn_csv = connect_to_db(db_csv)
+    cur_csv = conn_csv.cursor()
+
+    conns = [conn_orph, conn_zuul]
+    cursors = [cur_orph, cur_zuul]
+
+    cur_csv.execute(f"DROP TABLE IF EXISTS {rtctable}, {doctable}")
+    conn_csv.commit()
+    for conn, cur in zip(conns, cursors):
+        cur.execute(f"DROP TABLE IF EXISTS {rtctable}, {doctable}")
+        conn.commit()
+
     all_data = get_service_categories(base_dir, category_dir, services_dir)
-
-    create_rtc_table(conn, cur, rtc_table)
-
+    create_rtc_table(conn_csv, cur_csv, rtctable)
     for data in all_data:
-        insert_services_data(data, conn, cur, rtc_table)
+        insert_services_data(data, conn_csv, cur_csv, rtctable)
 
-    create_doc_table(conn, cur, doc_table)
+    create_doc_table(conn_csv, cur_csv, doctable)
     all_doc_data = get_docs_info(base_dir, doc_dir)
     for doc_data in all_doc_data:
-        insert_docs_data(doc_data, conn, cur, doc_table)
+        insert_docs_data(doc_data, conn_csv, cur_csv, doctable)
+
+    copy_rtc(cur_csv, cursors, conns, rtctable)
+
+    for conn in conns:
+        conn.close()
+    conn_csv.close()
 
 
 if __name__ == "__main__":
-    conn = connect_to_db(db_name)
-    cur = conn.cursor()
     base_dir_swiss = "/repos/infra/otc-metadata-swiss/contents/"
     base_dir_regular = "/repos/infra/otc-metadata/contents/"
     base_rtc_table = "repo_title_category"
     base_doc_table = "doc_types"
 
-    main(base_dir_swiss, f"{base_rtc_table}_swiss", f"{base_doc_table}_swiss")
     main(base_dir_regular, base_rtc_table, base_doc_table)
-    add_obsolete_services(conn, cur)
-
-    cur.close()
-    conn.close()
+    main(base_dir_swiss, f"{base_rtc_table}_swiss", f"{base_doc_table}_swiss")
+    conn_csv = connect_to_db(db_csv)
+    cur_csv = conn_csv.cursor()
+    add_obsolete_services(conn_csv, cur_csv)
+    conn_csv.commit()
+    conn_csv.close()

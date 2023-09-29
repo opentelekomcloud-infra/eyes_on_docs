@@ -10,6 +10,7 @@ start_time = time.time()
 print("**GITHUB INFO SCRIPT IS RUNNING**")
 
 github_token = os.getenv("GITHUB_TOKEN")
+github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
@@ -54,19 +55,19 @@ def extract_pull_links(cur, table_name):
 
 
 def get_auto_prs(gh_string, repo_name, access_token, pull_links):
+    auto_prs = []
     headers = {"Authorization": f"Bearer {access_token}"}
     url = f"https://api.github.com/repos/{gh_string}/{repo_name}/pulls"
     params = {"state": "all"}
     try:
         response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
+        for pr in response.json():
+            body = pr.get("body")
+            if body and any(link in body for link in pull_links):
+                auto_prs.append(pr)
     except requests.exceptions.RequestException as e:
         print(f"Get PRs: an error occurred while trying to get pull requests: {e}")
-    auto_prs = []
-    for pr in response.json():
-        body = pr.get("body")
-        if body and any(link in body for link in pull_links):
-            auto_prs.append(pr)
     return auto_prs
 
 
@@ -116,9 +117,9 @@ def update_orphaned_prs(org_str, cur, conn, rows, auto_prs, table_name):
     conn.commit()
 
 
-def main(org, gorg, table_name):
+def main(org, gorg, table_name, token):
     check_env_variables()
-    g = Github(github_token)
+    g = Github(token)
 
     ghorg = g.get_organization(gorg)
     repo_names = [repo.name for repo in ghorg.get_repos()]
@@ -147,10 +148,21 @@ if __name__ == "__main__":
     org_string = "docs"
     gh_org_str = "opentelekomcloud-docs"
     orph_table = "open_prs"
-    main(org_string, gh_org_str, orph_table)
-    main(f"{org_string}-swiss", f"{gh_org_str}-swiss", f"{orph_table}_swiss")
+
+    done = False
+    try:
+        main(org_string, gh_org_str, orph_table, github_token)
+        main(f"{org_string}-swiss", f"{gh_org_str}-swiss", f"{orph_table}_swiss", github_token)
+        done = True
+    except:
+        main(org_string, gh_org_str, orph_table, github_fallback_token)
+        main(f"{org_string}-swiss", f"{gh_org_str}-swiss", f"{orph_table}_swiss", github_fallback_token)
+        done = True
+    if done:
+        print("Github operations successfully done!")
 
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
     print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+
