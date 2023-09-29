@@ -17,6 +17,7 @@ session = requests.Session()
 session.debug = False
 gitea_token = os.getenv("GITEA_TOKEN")
 github_token = os.getenv("GITHUB_TOKEN")
+github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
@@ -440,48 +441,37 @@ def get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string):
         print('Github PRs: an error occurred:', e)
 
 
-def update_squad_and_title(cur_csv, conn_table, cur_table, rtctable, opentable):
-    print(f"Updating squads and titles in {opentable}...")
-    try:
-        cur_table.execute(f"SELECT * FROM {opentable};")  # Use Zuul cursor here
-        failed_prs_rows = cur_table.fetchall()
+def update_squad_and_title(cursors, conns, rtctable, opentable):
+    print("Updating squads and titles...")
+    for cur in cursors:
+        try:
+            cur.execute(f"SELECT * FROM {opentable};")
+            open_issues_rows = cur.fetchall()
 
-        for row in failed_prs_rows:
-            service_name_index = 1
-            id_index = 0
-
-            cur_csv.execute(
-                f"""SELECT "Title", "Category"
-                    FROM {rtctable}
-                    WHERE "Repository" = %s;""",
-                (str(row[service_name_index]),)
-            )
-            rtc_row = cur_csv.fetchone()
-
-            if rtc_row:
-                cur_table.execute(
+            for row in open_issues_rows:
+                cur.execute(
                     f"""UPDATE {opentable}
-                        SET "Service Name" = %s, "Squad" = %s
-                        WHERE id = %s;""",
-                    (rtc_row[0], rtc_row[1], row[id_index])
+                        SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
+                        FROM {rtctable} AS rtc
+                        WHERE {opentable}."Service Name" = rtc."Repository"
+                        AND {opentable}.id = %s;""",
+                    (row[0],)
                 )
-
-            if row[service_name_index] in ('doc-exports', 'docs_on_docs', 'docsportal'):
-                cur_table.execute(
+                cur.execute(
                     f"""UPDATE {opentable}
                         SET "Squad" = 'Other'
-                        WHERE id = %s;""",
-                    (row[id_index],)
+                        WHERE {opentable}."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
+                        AND {opentable}.id = %s;""",
+                    (row[0],)
                 )
+                for conn in conns:
+                    conn.commit()
 
-            conn_table.commit()
-
-    except Exception as e:
-        print(f"Error updating squad and title: {e}")
-        conn_table.rollback()
+        except Exception as e:
+            print(f"Error updating squad and title: {e}")
 
 
-def main(org, gh_org, rtctable, opentable, string):
+def main(org, gh_org, rtctable, opentable, string, token):
     check_env_variables()
     csv_erase()
 
@@ -489,11 +479,14 @@ def main(org, gh_org, rtctable, opentable, string):
     cur_csv = conn_csv.cursor()
     conn_orph = connect_to_db(db_orph)
     cur_orph = conn_orph.cursor()
-    g = Github(github_token)
+    g = Github(token)
     github_org = g.get_organization(gh_org)
 
     cur_csv.execute(f"DROP TABLE IF EXISTS {opentable}")
     conn_csv.commit()
+
+    cursors = [cur_csv, cur_orph]
+    conns = [conn_csv, conn_orph]
 
     create_prs_table(conn_csv, cur_csv, opentable)
 
@@ -514,12 +507,10 @@ def main(org, gh_org, rtctable, opentable, string):
 
     get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string)
 
-    update_squad_and_title(cur_csv, conn_orph, cur_orph, rtctable, opentable)
+    update_squad_and_title(cursors, conns, rtctable, opentable)
 
-    cur_csv.close()
-    conn_csv.close()
-    cur_orph.close()
-    conn_orph.close()
+    for conn in conns:
+        conn.close()
 
 
 if __name__ == "__main__":
@@ -527,8 +518,19 @@ if __name__ == "__main__":
     open_table = "open_prs"
     org_string = "docs"
     gh_org_string = "opentelekomcloud-docs"
-    main(org_string, gh_org_string, rtc_table, open_table, org_string)
-    main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss")
+
+    done = False
+
+    try:
+        main(org_string, gh_org_string, rtc_table, open_table, org_string, github_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss", github_token)
+        done = True
+    except:
+        main(org_string, gh_org_string, rtc_table, open_table, org_string, github_fallback_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss", github_fallback_token)
+        done = True
+    if done:
+        print("Github operations successfully done!")
 
     end_time = time.time()
     execution_time = end_time - start_time
