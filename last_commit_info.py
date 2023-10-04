@@ -2,11 +2,9 @@ import os
 import shutil
 import tempfile
 import psycopg2
-from git import Repo
 from github import Github
 from datetime import datetime
 import time
-import subprocess
 
 start_time = time.time()
 
@@ -66,14 +64,15 @@ def create_commits_table(conn, cur, table_name):
         print(f"Tables creating: an error occurred while trying to create a table {table_name} in the database: {e}")
 
 
-def get_last_commit_url(github_repo, git_repo, path):
-    gh_repo = github_repo.full_name
-    try:
-        last_commit_sha = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%H', '--', f':(exclude)**/conf.py', path], cwd=git_repo.working_dir).decode().strip()
-        last_commit_url = f"https://github.com/{gh_repo}/commit/{last_commit_sha}"
-        return last_commit_url
-    except Exception as e:
-        print(f"SHA: an error occurred while getting last commit URL: {e}")
+def get_last_commit_url(github_repo, path):
+    commits = github_repo.get_commits(path=path)
+
+    for commit in commits:
+        files_changed = commit.files
+        if not any(file.filename.endswith('conf.py') for file in files_changed):
+            return commit.html_url, commit.commit.author.date  # Return the commit URL and its date
+
+    return None, None
 
 
 def get_last_commit(org, conn, cur, doctype, string, table_name):
@@ -87,27 +86,29 @@ def get_last_commit(org, conn, cur, doctype, string, table_name):
         tmp_dir = tempfile.mkdtemp()
 
         try:
-            cloned_repo = Repo.clone_from(repo.clone_url, tmp_dir)
 
-            for path in {doctype}:
-                try:
-                    last_commit_url = get_last_commit_url(repo, cloned_repo, path)
-                    last_commit_str = cloned_repo.git.log('-1', '--pretty=format:%cd', '--date=short', f':(exclude)*conf.py {path}')
-                    last_commit = datetime.strptime(last_commit_str, '%Y-%m-%d')
-                    now = datetime.utcnow()
-                    duration = now - last_commit
-                    duration_days = duration.days
-                    if doctype == "umn/source":
-                        doc_type = "UMN"
-                    else:
-                        doc_type = "API"
-                    service_name = repo.name
-                    cur.execute(
-                        f'INSERT INTO {table_name} ("Service Name", "Doc Type", "Last commit at", "Days passed", "Commit URL") VALUES (%s, %s, %s, %s, %s);',
-                        (service_name, doc_type, last_commit_str, duration_days, last_commit_url,))
-                    conn.commit()
-                except Exception as e:
-                    print(f"Last commit: an error occurred while running git log for path {path}: {str(e)}")
+            path = doctype
+            last_commit_url, last_commit_date = get_last_commit_url(repo, path)
+            if last_commit_url and last_commit_date:
+                # print("*************************************************************************new block of commit")
+                last_commit_url, _ = get_last_commit_url(repo, path)
+                # print("last commit url------------------------------------------", last_commit_url)
+                formatted_commit_date = last_commit_date.strftime('%Y-%m-%d')
+                # print("LAST COMMIT DATE--------------------------------------", formatted_commit_date)
+                now = datetime.utcnow()
+                # print("NOW----------------------------------------", now)
+                duration = now - last_commit_date
+                duration_days = duration.days
+                # print("DURATION DAYS______________________________________________", duration_days)
+                if doctype == "umn/source":
+                    doc_type = "UMN"
+                else:
+                    doc_type = "API"
+                service_name = repo.name
+                cur.execute(
+                    f'INSERT INTO {table_name} ("Service Name", "Doc Type", "Last commit at", "Days passed", "Commit URL") VALUES (%s, %s, %s, %s, %s);',
+                    (service_name, doc_type, formatted_commit_date, duration_days, last_commit_url,))
+                conn.commit()
 
         except Exception as e:
             print(f"Last commit: an error occurred while processing repo {repo.name}: {str(e)}")
