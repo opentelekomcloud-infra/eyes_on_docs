@@ -107,8 +107,12 @@ def get_repos(org, gitea_token):
             print(f"JSON decode: an error occurred while trying to decode JSON: {e}")
             break
 
+        exclude_repos = ["content-delivery-network", "data-admin-service"]
         for repo in repos_dict:
-            repos.append(repo["name"])
+            if repo["name"] in exclude_repos:
+                continue
+            else:
+                repos.append(repo["name"])
 
         link_header = repos_resp.headers.get("Link")
         if link_header is None or "rel=\"next\"" not in link_header:

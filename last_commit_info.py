@@ -77,7 +77,7 @@ def get_last_commit_url(github_repo, path):
 
 def get_last_commit(org, conn, cur, doctype, string, table_name):
     print(f"Gathering last commit info for {string}...")
-    exclude_repos = ["docsportal", "doc-exports", "docs_on_docs", ".github", "presentations", "sandbox", "security", "template"]
+    exclude_repos = ["docsportal", "doc-exports", "docs_on_docs", ".github", "presentations", "sandbox", "security", "template", "content-delivery-network", "data-admin-service"]
     for repo in org.get_repos():
 
         if repo.name in exclude_repos:
