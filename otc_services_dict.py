@@ -44,6 +44,7 @@ def create_rtc_table(conn_csv, cur_csv, table_name):
             "Repository" VARCHAR(255),
             "Title" VARCHAR(255),
             "Category" VARCHAR(255),
+            "Squad" VARCHAR(255),
             "Type" VARCHAR(255)
             );'''
         )
@@ -111,6 +112,12 @@ def get_service_categories(base_dir, category_dir, services_dir):
             data_dict = yaml.safe_load(file_content)
             technical_name = data_dict.get('service_category')
             data_dict['service_category'] = pretty_names.get(technical_name, technical_name)
+            teams = data_dict.get('teams', [])
+            if teams:
+                squad_name = teams[0].get('name', '')
+                data_dict['squad'] = squad_name
+            else:
+                data_dict['squad'] = ''
 
             all_data.append(data_dict)
 
@@ -143,17 +150,47 @@ def insert_services_data(item, conn_csv, cur_csv, table_name):
         print(f"Unexpected data type: {type(item)}, value: {item}")
         return
 
-    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Type")
-                      VALUES (%s, %s, %s, %s);"""
+    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Type")
+                      VALUES (%s, %s, %s, %s, %s);"""
 
     repository = item.get("service_uri")
     title = item.get("service_title")
     category = item.get("service_category")
+    squad = item.get("squad")
     stype = item.get("service_type")
 
-    cur_csv.execute(insert_query, (repository, title, category, stype))
+
+    cur_csv.execute(insert_query, (repository, title, category, squad, stype))
 
     conn_csv.commit()
+
+
+def get_squad_description(styring_url):
+    response = requests.get(styring_url, headers=headers)
+    response.raise_for_status()
+
+    file_content_base64 = response.json()['content']
+    file_content = base64.b64decode(file_content_base64).decode('utf-8')
+
+    data = yaml.safe_load(file_content)
+
+    return {item['slug']: item['description'] for item in data['teams']}
+
+
+def update_squad_title(conn, styring_url, table_name):
+    descriptions = get_squad_description(styring_url)
+
+    cur = conn.cursor()
+    cur.execute(f"SELECT DISTINCT \"Squad\" FROM {table_name};")
+    squads = cur.fetchall()
+
+    for (squad,) in squads:
+        description = descriptions.get(squad)
+        if description:
+            cur.execute(f"UPDATE {table_name} SET \"Squad\" = %s WHERE \"Squad\" = %s;", (description, squad))
+
+    conn.commit()
+    cur.close()
 
 
 def insert_docs_data(item, conn_csv, cur_csv, table_name):
@@ -175,8 +212,8 @@ def insert_docs_data(item, conn_csv, cur_csv, table_name):
 
 def add_obsolete_services(conn_csv, cur_csv):
     data_to_insert = [
-        {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category": "Other", "service_type": "cdn"},
-        {"service_uri": "data-admin-service", "service_title": "Data Admin Service", "service_category": "Other", "service_type": "das"}
+        {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category": "Other", "service_type": "cdn", "squad": "Other"},
+        {"service_uri": "data-admin-service", "service_title": "Data Admin Service", "service_category": "Other", "service_type": "das", "squad": "Other"}
     ]
 
     for item in data_to_insert:
@@ -210,11 +247,11 @@ def copy_rtc(cur_csv, cursors, conns, rtctable):
             conn.rollback()
 
 
-
-def main(base_dir, rtctable, doctable):
+def main(base_dir, rtctable, doctable, styring_path):
     services_dir = f"{base_dir}otc_metadata/data/services"
     category_dir = f"{base_dir}otc_metadata/data/service_categories"
     doc_dir = f"{base_dir}otc_metadata/data/documents"
+    styring_url = f"{BASE_URL}{styring_path}{gitea_token}"
 
     conn_orph = connect_to_db(db_orph)
     cur_orph = conn_orph.cursor()
@@ -239,6 +276,8 @@ def main(base_dir, rtctable, doctable):
     for data in all_data:
         insert_services_data(data, conn_csv, cur_csv, rtctable)
 
+    update_squad_title(conn_csv, styring_url, rtctable)
+
     create_doc_table(conn_csv, cur_csv, doctable)
     all_doc_data = get_docs_info(base_dir, doc_dir)
     for doc_data in all_doc_data:
@@ -254,11 +293,13 @@ def main(base_dir, rtctable, doctable):
 if __name__ == "__main__":
     base_dir_swiss = "/repos/infra/otc-metadata-swiss/contents/"
     base_dir_regular = "/repos/infra/otc-metadata/contents/"
+    styring_url_regular = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/data.yaml?token="
+    styring_url_swiss = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-swiss/data.yaml?token="
     base_rtc_table = "repo_title_category"
     base_doc_table = "doc_types"
 
-    main(base_dir_regular, base_rtc_table, base_doc_table)
-    main(base_dir_swiss, f"{base_rtc_table}_swiss", f"{base_doc_table}_swiss")
+    main(base_dir_regular, base_rtc_table, base_doc_table, styring_url_regular)
+    main(base_dir_swiss, f"{base_rtc_table}_swiss", f"{base_doc_table}_swiss", styring_url_swiss)
     conn_csv = connect_to_db(db_csv)
     cur_csv = conn_csv.cursor()
     add_obsolete_services(conn_csv, cur_csv)

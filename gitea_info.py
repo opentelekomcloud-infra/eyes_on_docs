@@ -279,7 +279,7 @@ def update_service_titles(cur_csv, rtctable):
             rows = list(reader)
             header = rows.pop(0)
             for i, row in enumerate(rows):
-                for (repo_id, repo, title, category, stype) in repo_title_category:
+                for (repo_id, repo, title, category, squad, stype) in repo_title_category:
                     if repo == row[1]:
                         title_index = header.index("Service Name")
                         row[title_index] = title
@@ -319,9 +319,9 @@ def add_squad_column(cur_csv, rtctable):
             header.insert(2, "Squad")
             for row in rows:
                 name_service = row[1]
-                for (repo_id, repo, title, category, stype) in repo_title_category:
+                for (repo_id, repo, title, category, squad, stype) in repo_title_category:
                     if title == name_service:
-                        row.insert(2, category)
+                        row.insert(2, squad)
     except IOError as e:
         print(f"Squad column: an error occurred while reading the file: {e}")
         return
@@ -455,7 +455,7 @@ def update_squad_and_title(cursors, conns, rtctable, opentable):
             for row in open_issues_rows:
                 cur.execute(
                     f"""UPDATE {opentable}
-                        SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
+                        SET "Service Name" = rtc."Title", "Squad" = rtc."Squad"
                         FROM {rtctable} AS rtc
                         WHERE {opentable}."Service Name" = rtc."Repository"
                         AND {opentable}.id = %s;""",

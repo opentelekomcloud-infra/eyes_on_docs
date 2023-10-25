@@ -236,7 +236,7 @@ def update_squad_and_title(conn_zuul, cur_zuul, rtctable, opentable):
             id_index = 0
 
             cur_zuul.execute(
-                f"""SELECT "Title", "Category"
+                f"""SELECT "Title", "Squad"
                     FROM {rtctable}
                     WHERE "Repository" = %s;""",
                 (row[service_name_index],)
