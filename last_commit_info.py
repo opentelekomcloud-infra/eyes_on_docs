@@ -126,7 +126,7 @@ def update_squad_and_title(conn, cur, table_name, rtc):
         for row in open_issues_rows:
             cur.execute(
                 f"""UPDATE {table_name}
-                    SET "Service Name" = rtc."Title", "Squad" = rtc."Category"
+                    SET "Service Name" = rtc."Title", "Squad" = rtc."Squad"
                     FROM {rtc} AS rtc
                     WHERE {table_name}."Service Name" = rtc."Repository"
                     AND {table_name}.id = %s;""",
