@@ -69,7 +69,7 @@ def get_last_commit_url(github_repo, path):
 
     for commit in commits:
         files_changed = commit.files
-        if not any(file.filename.endswith('conf.py') for file in files_changed):
+        if any(file.filename.endswith('.rst') and file.filename.startswith(f'{path}') for file in files_changed):
             return commit.html_url, commit.commit.author.date  # Return the commit URL and its date
 
     return None, None
