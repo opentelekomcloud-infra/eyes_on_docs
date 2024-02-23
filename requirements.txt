@@ -14,3 +14,4 @@ urllib3==2.0.7
 wrapt==1.15.0
 pyyaml==6.0.1
 gitpython==3.1.37
+zulip==0.9.0

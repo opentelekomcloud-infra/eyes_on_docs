@@ -8,5 +8,5 @@ Scripts gathering HC3.0 PRs, issues and docs info from Github and Gitea. Scripts
 4) **failed_zuul.py:** collecting info about PRs which checks in Zuul has been failed
 5) **open_issues.py:** this script gather info regarding all open issues both from Gitea and Gitnub
 6) **last_commit_info.py:** this script gather and calculate date of the last update of a prospective doc for all the services and types of docs (user manual, API reference and so on)
-
+7) **scheduler.py:** this script checking postgres for orphans, unattended issues and outdated docs, and send notifications to Zulip, via OTC Bot. Runs as cronjob (see 'system-config' repo)
 Postgres database names, table names, Gitea & Github organization names and access tokens are store in environment variables.
