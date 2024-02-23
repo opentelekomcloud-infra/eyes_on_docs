@@ -59,6 +59,7 @@ def check_orphans(conn_orph, squad_name, stream_name, topic_name):
     cur_orph = conn_orph.cursor()
     tables = ["open_prs", "open_prs_swiss"]
     for table in tables:
+        # here each query marked with zone marker (Public or Hybrid) and type for bringing it into message
         if table == "open_prs":
             logging.info(f"Looking for orphaned PRs for {squad_name} in {table}...")
             query = f"""SELECT *, 'Public' as zone, 'orphan' as type FROM {table} WHERE "Squad" = '{squad_name}';"""
@@ -78,6 +79,7 @@ def check_open_issues(conn, squad_name, stream_name, topic_name):
     cur = conn.cursor()
     tables = ["open_issues", "open_issues_swiss"]
     for table in tables:
+        # here each query marked with zone marker (Public or Hybrid) and type for bringing it into message
         if table == "open_issues":
             logging.info(f"Checking {table} for {squad_name}")
             query = f"""SELECT *, 'Public' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND "Environment" = 'Github' AND "Assignees" = '' AND "Duration" > '7' ;"""
@@ -97,6 +99,7 @@ def check_outdated_docs(conn, squad_name, stream_name, topic_name):
     cur = conn.cursor()
     tables = ["last_update_commit", "last_update_commit_swiss"]
     for table in tables:
+        # here each query marked with zone marker (Public or Hybrid) and type for bringing it into message
         if table == "last_update_commit":
             logging.info(f"Checking {table} table for {squad_name}...")
             query = f"""SELECT *, 'Public' as zone, 'doc' as type FROM {table} WHERE "Squad" = %s;"""
