@@ -25,6 +25,7 @@ api_key = os.getenv("OTC_BOT_API")
 squad_streams = {
     "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
     "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
+    "Compute Squad": {"stream": "compute", "topic": "hc_alerts topic"},
     "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"}
 }
 
