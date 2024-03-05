@@ -7,10 +7,13 @@ import pathlib
 import psycopg2
 from github import Github
 import time
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 start_time = time.time()
 
-print("**OPEN PRs SCRIPT IS RUNNING**")
+logging.info("**OPEN PRs SCRIPT IS RUNNING**")
 
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
@@ -37,24 +40,19 @@ def check_env_variables():
             raise Exception(f"Missing environment variable: {var}")
 
 
-def csv_erase():
+def csv_erase(filenames):
     try:
-        proposalbot = pathlib.Path("proposalbot_prs.csv")
-        docexports = pathlib.Path("doc_exports_prs.csv")
-        orphaned = pathlib.Path("orphaned_prs.csv")
-        if proposalbot.exists() is True:
-            proposalbot.unlink()
-        if docexports.exists() is True:
-            docexports.unlink()
-        if orphaned.exists() is True:
-            orphaned.unlink()
-        print("CSV erased")
+        for filename in filenames:
+            file_path = pathlib.Path(filename)
+            if file_path.exists():
+                file_path.unlink()
+                logging.info(f"CSV {filename} has been deleted")
     except Exception as e:
-        print(f"CSV erasing: an error occurred while trying to delete csv files: {e}")
+        logging.error(f"CSV erase: error has been occured: {e}")
 
 
 def connect_to_db(db_name):
-    print(f"Connecting to Postgres ({db_name})...")
+    logging.info(f"Connecting to Postgres ({db_name})...")
     try:
         return psycopg2.connect(
             host=db_host,
@@ -64,7 +62,7 @@ def connect_to_db(db_name):
             password=db_password
         )
     except psycopg2.Error as e:
-        print(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
         return None
 
 
@@ -85,31 +83,36 @@ def create_prs_table(conn_csv, cur_csv, table_name):
             );'''
         )
         conn_csv.commit()
-        print(f"Table {table_name} has been created successfully")
+        logging.info(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
-        print(f"Tables creating: an error occurred while trying to create a table {table_name} in the database: {e}")
+        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database: {e}")
 
 
 def get_repos(org, gitea_token):
     repos = []
     page = 1
+    exclude_repos = []
+    with open("internal_services.csv", "r") as f:
+        internal = csv.reader(f)
+        for row in internal:
+            exclude_repos.extend(row)
+
     while True:
         try:
             repos_resp = session.get(f"{gitea_api_endpoint}/orgs/{org}/repos?page={page}&limit=50&token={gitea_token}")
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Get repos: an error occurred while trying to get repos: {e}")
+            logging.error(f"Get repos: an error occurred while trying to get repos: {e}")
             break
 
         try:
             repos_dict = json.loads(repos_resp.content.decode())
         except json.JSONDecodeError as e:
-            print(f"JSON decode: an error occurred while trying to decode JSON: {e}")
+            logging.error(f"JSON decode: an error occurred while trying to decode JSON: {e}")
             break
 
-        exclude_repos = ["content-delivery-network", "data-admin-service"]
         for repo in repos_dict:
-            if repo["name"] in exclude_repos:
+            if repo["archived"] or repo["name"] in exclude_repos:
                 continue
             else:
                 repos.append(repo["name"])
@@ -120,7 +123,7 @@ def get_repos(org, gitea_token):
         else:
             page += 1
 
-    print(len(repos), "repos has been processed")
+    logging.info(f"{len(repos)} repos have been processed")
 
     return repos
 
@@ -136,7 +139,7 @@ def get_parent_pr(org, repo):
             csv_2 = open("proposalbot_prs.csv", "a")
             csv_writer = csv.writer(csv_2)
     except IOError as e:
-        print(f"Proposalbot_prs.csv: an error occurred while trying to open or write to CSV file: {e}")
+        logging.error(f"Proposalbot_prs.csv: an error occurred while trying to open or write to CSV file: {e}")
         return
     if repo != "doc-exports" and repo != "dsf":
         page = 1
@@ -145,13 +148,13 @@ def get_parent_pr(org, repo):
                 repo_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=all&page={page}&limit=1000&token={gitea_token}")
                 repo_resp.raise_for_status()
             except requests.exceptions.RequestException as e:
-                print(f"Error occurred while trying to get repo pull requests: {e}")
+                logging.error(f"Error occurred while trying to get repo pull requests: {e}")
                 break
 
             try:
                 pull_request = json.loads(repo_resp.content.decode())
             except json.JSONDecodeError as e:
-                print(f"Error occurred while trying to decode JSON: {e}")
+                logging.error(f"Error occurred while trying to decode JSON: {e}")
                 break
 
             dependency_pull_requests = []
@@ -174,7 +177,7 @@ def get_parent_pr(org, repo):
                         try:
                             csv_writer.writerow([parent_pr, service, auto_url, auto_state, if_merged, env])
                         except csv.Error as e:
-                            print(f"Error occurred while trying to write to CSV file: {e}")
+                            logging.error(f"Error occurred while trying to write to CSV file: {e}")
                             break
             link_header = repo_resp.headers.get("Link")
             if link_header is None or "rel=\"next\"" not in link_header:
@@ -185,7 +188,7 @@ def get_parent_pr(org, repo):
         csv_2.close()
 
     except IOError as e:
-        print(f"Error occurred while trying to close CSV file: {e}")
+        logging.error(f"Error occurred while trying to close CSV file: {e}")
 
 
 def extract_number_from_body(text):
@@ -194,16 +197,16 @@ def extract_number_from_body(text):
         if match:
             return int(match.group()[1:])
     except ValueError as e:
-        print(f"An error occurred while converting match group to int: {e}")
+        logging.error(f"An error occurred while converting match group to int: {e}")
         return None
     except re.error as e:
-        print(f"An error occurred while searching text: {e}")
+        logging.error(f"An error occurred while searching text: {e}")
         return None
     return None
 
 
 def get_pull_requests(org, repo):
-    print("Gathering Gitea's child PRs...")
+    logging.info("Gathering Gitea's child PRs...")
     states = ["open", "closed"]
     pull_requests = []
     try:
@@ -211,7 +214,7 @@ def get_pull_requests(org, repo):
         csv_writer = csv.writer(csv_file)
         csv_writer.writerow(["Parent PR index", "Parent PR title", "Parent PR URL", "Parent PR state", "If merged"])
     except IOError as e:
-        print(f"Child PRs: an error occurred while opening or writing to the CSV file: {e}")
+        logging.error(f"Child PRs: an error occurred while opening or writing to the CSV file: {e}")
         return pull_requests
 
     for state in states:
@@ -221,13 +224,13 @@ def get_pull_requests(org, repo):
                 pull_requests_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state={state}&page={page}&limit=50&token={gitea_token}")
                 pull_requests_resp.raise_for_status()
             except requests.exceptions.RequestException as e:
-                print(f"Child PRs: an error occurred while trying to get pull requests of {repo} repo: {e}")
+                logging.error(f"Child PRs: an error occurred while trying to get pull requests of {repo} repo: {e}")
                 break
 
             try:
                 pull_requests = json.loads(pull_requests_resp.content.decode("utf-8"))
             except json.JSONDecodeError as e:
-                print(f"Child PRs: an error occurred while trying to decode JSON: {e}")
+                logging.error(f"Child PRs: an error occurred while trying to decode JSON: {e}")
                 break
 
             for pr in pull_requests:
@@ -239,7 +242,7 @@ def get_pull_requests(org, repo):
                 try:
                     csv_writer.writerow([index, title, url, state, if_merged])
                 except csv.Error as e:
-                    print(f"Child PRs: an error occurred while trying to write to CSV file: {e}")
+                    logging.error(f"Child PRs: an error occurred while trying to write to CSV file: {e}")
                     break
 
             link_header = pull_requests_resp.headers.get("Link")
@@ -250,27 +253,27 @@ def get_pull_requests(org, repo):
     try:
         csv_file.close()
     except IOError as e:
-        print(f"Child PRs: n error occurred while trying to close CSV file: {e}")
+        logging.error(f"Child PRs: n error occurred while trying to close CSV file: {e}")
 
     return pull_requests
 
 
 def fetch_repo_title_category(cur_csv, rtctable):
-    print(f"Fetching RTC table {rtctable}...")
+    logging.info(f"Fetching RTC table {rtctable}...")
     try:
         cur_csv.execute(f"SELECT * FROM {rtctable}")
         return cur_csv.fetchall()
     except Exception as e:
-        print(f"Fetch: an error occurred while trying to fetch data from the table: {e}")
+        logging.error(f"Fetch: an error occurred while trying to fetch data from the table: {e}")
         return None
 
 
 def update_service_titles(cur_csv, rtctable):
-    print(f"Updating service titles using {rtctable}..")
+    logging.info(f"Updating service titles using {rtctable}..")
     try:
         repo_title_category = fetch_repo_title_category(cur_csv, rtctable)
     except Exception as e:
-        print(f"Titles: an error occurred while fetching repo title category: {e}")
+        logging.error(f"Titles: an error occurred while fetching repo title category: {e}")
         return
 
     try:
@@ -284,10 +287,10 @@ def update_service_titles(cur_csv, rtctable):
                         title_index = header.index("Service Name")
                         row[title_index] = title
     except IOError as e:
-        print(f"Titles: an error occurred while reading the file: {e}")
+        logging.error(f"Titles: an error occurred while reading the file: {e}")
         return
     except Exception as e:
-        print(f"Titles: an unexpected error occurred: {e}")
+        logging.error(f"Titles: an unexpected error occurred: {e}")
         return
 
     try:
@@ -296,19 +299,19 @@ def update_service_titles(cur_csv, rtctable):
             writer.writerow(header)
             writer.writerows(rows)
     except IOError as e:
-        print(f"Titles: an error occurred while writing to the file: {e}")
+        logging.error(f"Titles: an error occurred while writing to the file: {e}")
         return
     except Exception as e:
-        print(f"Titles: an unexpected error occurred: {e}")
+        logging.error(f"Titles: an unexpected error occurred: {e}")
         return
 
 
 def add_squad_column(cur_csv, rtctable):
-    print("Add 'Squad' column into csv file...")
+    logging.info("Add 'Squad' column into csv file...")
     try:
         repo_title_category = fetch_repo_title_category(cur_csv, rtctable)
     except Exception as e:
-        print(f"Squad column: an error occurred while fetching repo title category: {e}")
+        logging.error(f"Squad column: an error occurred while fetching repo title category: {e}")
         return
 
     try:
@@ -323,10 +326,10 @@ def add_squad_column(cur_csv, rtctable):
                     if title == name_service:
                         row.insert(2, squad)
     except IOError as e:
-        print(f"Squad column: an error occurred while reading the file: {e}")
+        logging.error(f"Squad column: an error occurred while reading the file: {e}")
         return
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logging.error(f"An unexpected error occurred: {e}")
         return
 
     try:
@@ -335,15 +338,15 @@ def add_squad_column(cur_csv, rtctable):
             writer.writerow(header)
             writer.writerows(rows)
     except IOError as e:
-        print(f"Squad column: an error occurred while writing to the file: {e}")
+        logging.info(f"Squad column: an error occurred while writing to the file: {e}")
         return
     except Exception as e:
-        print(f"Squad column: an unexpected error occurred: {e}")
+        logging.error(f"Squad column: an unexpected error occurred: {e}")
         return
 
 
 def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
-    print("Gathering open and orphaned PRs...")
+    logging.info("Gathering open and orphaned PRs...")
     try:
         doc_exports_prs = []
         proposalbot_prs = []
@@ -359,7 +362,7 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                 doc_exports_prs.append(row)
 
     except IOError as e:
-        print(f"Open and orphans: an error occurred while trying to read the file: {e}")
+        logging.error(f"Open and orphans: an error occurred while trying to read the file: {e}")
         return
 
     orphaned = []
@@ -378,7 +381,7 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                         """, tuple(pr1))
                         conn_orph.commit()
                     except Exception as e:
-                        print(f"Open and orphans: an error occurred while inserting into the orphaned_prs table: {e}")
+                        logging.error(f"Open and orphans: an error occurred while inserting into the orphaned_prs table: {e}")
 
             elif pr1[0] == pr2[0] and pr1[4] == pr2[3] == "open":
                 if pr1 not in open_prs:
@@ -392,7 +395,7 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                         """, tuple(pr1))
                         conn_csv.commit()
                     except Exception as e:
-                        print(f"Open and orphans: an error occurred while inserting into the open_prs table: {e}")
+                        logging.error(f"Open and orphans: an error occurred while inserting into the open_prs table: {e}")
 
 
 def gitea_pr_info(org, parent_pr_name):
@@ -410,10 +413,10 @@ def gitea_pr_info(org, parent_pr_name):
 
 
 def get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string):
-    print(f"Gathering Github open PRs for {string}...")
+    logging.info(f"Gathering Github open PRs for {string}...")
 
     if not github_org or not conn_csv or not cur_csv:
-        print("Github PRs: error: Invalid input parameters.")
+        logging.error("Github PRs: error: Invalid input parameters.")
         return
 
     try:
@@ -442,11 +445,11 @@ def get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string):
                         )
                         conn_csv.commit()
     except Exception as e:
-        print('Github PRs: an error occurred:', e)
+        logging.error('Github PRs: an error occurred:', e)
 
 
 def update_squad_and_title(cursors, conns, rtctable, opentable):
-    print("Updating squads and titles...")
+    logging.info("Updating squads and titles...")
     for cur in cursors:
         try:
             cur.execute(f"SELECT * FROM {opentable};")
@@ -472,12 +475,12 @@ def update_squad_and_title(cursors, conns, rtctable, opentable):
                     conn.commit()
 
         except Exception as e:
-            print(f"Error updating squad and title: {e}")
+            logging.error(f"Error updating squad and title: {e}")
 
 
 def main(org, gh_org, rtctable, opentable, string, token):
     check_env_variables()
-    csv_erase()
+    csv_erase(["proposalbot_prs.csv", "doc_exports_prs.csv", "orphaned_prs.csv"])
 
     conn_csv = connect_to_db(db_csv)
     cur_csv = conn_csv.cursor()
@@ -495,7 +498,7 @@ def main(org, gh_org, rtctable, opentable, string, token):
     create_prs_table(conn_csv, cur_csv, opentable)
 
     repos = get_repos(org, gitea_token)
-    print("Gathering parent PRs...")
+    logging.info("Gathering parent PRs...")
     for repo in repos:
         get_parent_pr(org, repo)
     get_pull_requests(org, "doc-exports")
@@ -507,7 +510,6 @@ def main(org, gh_org, rtctable, opentable, string, token):
     conn_orph.commit()
     create_prs_table(conn_orph, cur_orph, opentable)
     compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable)
-    csv_erase()
 
     get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string)
 
@@ -534,9 +536,10 @@ if __name__ == "__main__":
         main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss", github_fallback_token)
         done = True
     if done:
-        print("Github operations successfully done!")
+        logging.info("Github operations successfully done!")
 
+    csv_erase(["proposalbot_prs.csv", "doc_exports_prs.csv", "orphaned_prs.csv", "internal_services.csv"])
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")

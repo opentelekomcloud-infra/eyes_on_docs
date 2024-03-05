@@ -5,6 +5,7 @@ import logging
 from psycopg2.extras import DictCursor
 import zulip
 from datetime import datetime
+from urllib.parse import quote
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -61,7 +62,7 @@ def check_orphans(conn_orph, squad_name, stream_name, topic_name):
     cur_orph = conn_orph.cursor()
     tables = ["open_prs", "open_prs_swiss"]
     for table in tables:
-        # here each query marked with zone marker (Public or Hybrid) and type for bringing it into message
+        # here each query marked with zone marker (Public or Hybrid) for bring it into message
         if table == "open_prs":
             logging.info(f"Looking for orphaned PRs for {squad_name} in {table}...")
             query = f"""SELECT *, 'Public' as zone, 'orphan' as type FROM {table} WHERE "Squad" = '{squad_name}';"""
@@ -81,7 +82,7 @@ def check_open_issues(conn, squad_name, stream_name, topic_name):
     cur = conn.cursor()
     tables = ["open_issues", "open_issues_swiss"]
     for table in tables:
-        # here each query marked with zone marker (Public or Hybrid) and type for bringing it into message
+        # here each query marked with zone marker (Public or Hybrid) for bring it into message
         if table == "open_issues":
             logging.info(f"Checking {table} for {squad_name}")
             query = f"""SELECT *, 'Public' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND "Environment" = 'Github' AND "Assignees" = '' AND "Duration" > '7' ;"""
@@ -101,7 +102,7 @@ def check_outdated_docs(conn, squad_name, stream_name, topic_name):
     cur = conn.cursor()
     tables = ["last_update_commit", "last_update_commit_swiss"]
     for table in tables:
-        # here each query marked with zone marker (Public or Hybrid) and type for bringing it into message
+        # here each query marked with zone marker (Public or Hybrid) for bring it into message
         if table == "last_update_commit":
             logging.info(f"Checking {table} table for {squad_name}...")
             query = f"""SELECT *, 'Public' as zone, 'doc' as type FROM {table} WHERE "Squad" = %s;"""
@@ -122,7 +123,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
     client = zulip.Client(email="apimon-bot@zulip.tsi-dev.otc-service.com", api_key=api_key, site="https://zulip.tsi-vc.otc-service.com")
     if row["type"] == "doc":
         squad_name = row[3]
+        encoded_squad = quote(squad_name)
         service_name = row[1]
+        zone = row[-2]
         commit_url = row[6]
         days_passed = int(row[5])
         if days_passed == 344:
@@ -142,24 +145,29 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         else:
             return
 
-        message += f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {row[-2]}\n**Date:** {current_date}\n\n**Commit" \
+        message += f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n**Commit" \
                    f" URL:** {commit_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service.com/d/c67f0f4b-b31c-" \
-                   f"4433-b530-a18896470d49/last-docs-commit?orgId=1\n\n---------------------------------------------------------"
+                   f"4433-b530-a18896470d49/last-docs-commit?orgId=1&var-squad_commit={encoded_squad}&var-doctype_commit=All&var-duration_commit=ASC&var-zone=last_update_commit\n\n---------------------------------------------------------"
     elif row["type"] == "issue":
         squad_name = row[3]
+        encoded_squad = quote(squad_name)
         service_name = row[2]
+        zone = row[-2]
         issue_url = row[5]
         message = f":point_right:      **Unattended Issues Alert**      :point_left:\n\nYou have an issue which has no assignees for more than 7 days\n\n" \
-                  f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {row[-2]}\n**Date:** {current_date}\n\n**Issue URL:" \
+                  f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n**Issue URL:" \
                   f"** {issue_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service.com/d/I-YJAuBVk/open-issues" \
-                  f"-dashboard?orgId=1&var-squad_issues=All&var-env_issues=All&var-sort_duration=DESC&var-zone=open_issues\n\n---------------------------------------------------------"
+                  f"-dashboard?orgId=1&var-squad_issues={encoded_squad}&var-env_issues=All&var-sort_duration=DESC&var-zone=open_issues\n\n---------------------------------------------------------"
     elif row["type"] == "orphan":
         squad_name = row[3]
+        encoded_squad = quote(squad_name)
         service_name = row[2]
+        zone = row[-2]
+        zone_table = "open_prs" if zone == "Public" else "open_prs_swiss"
         orphan_url = row[4]
-        message = f":boom:    **Orphaned PRs Alert**   :boom:\n\nYou have orphaned PR here!\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {row[-2]}\n**Date:** {current_date}\n\n" \
+        message = f":boom:    **Orphaned PRs Alert**   :boom:\n\nYou have orphaned PR here!\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n" \
                   f"**Orphan URL:** {orphan_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service.com/d/4vLGLDB" \
-                  f"4z/open-prs-dashboard?orgId=1\n\n---------------------------------------------------------"
+                  f"4z/open-prs-dashboard?orgId=1&var-squad_filter={encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n---------------------------------------------------------"
     result = client.send_message({
         "type": "stream",
         "to": stream_name,
