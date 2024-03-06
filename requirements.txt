@@ -1,7 +1,7 @@
 certifi==2023.7.22
 cffi==1.15.1
 charset-normalizer==3.1.0
-cryptography==41.0.6
+cryptography==42.0.4
 Deprecated==1.2.13
 idna==3.4
 psycopg2==2.9.6
@@ -14,3 +14,4 @@ urllib3==2.0.7
 wrapt==1.15.0
 pyyaml==6.0.1
 gitpython==3.1.41
+zulip==0.9.0
