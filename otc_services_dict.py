@@ -3,6 +3,15 @@ import requests
 import yaml
 import base64
 import psycopg2
+import time
+import logging
+import csv
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+start_time = time.time()
+
+logging.info("**OTC SERVICES DICT SCRIPT IS RUNNING**")
 
 BASE_URL = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 
@@ -21,7 +30,7 @@ db_password = os.getenv("DB_PASSWORD")
 
 
 def connect_to_db(db):
-    print(f"Connecting to Postgres ({db})...")
+    logging.info(f"Connecting to Postgres ({db})...")
     try:
         return psycopg2.connect(
             host=db_host,
@@ -31,12 +40,12 @@ def connect_to_db(db):
             password=db_password
         )
     except psycopg2.Error as e:
-        print(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
         return None
 
 
 def create_rtc_table(conn_csv, cur_csv, table_name):
-    print(f"Creating new service table {table_name}...")
+    logging.info(f"Creating new service table {table_name}...")
     try:
         cur_csv.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
@@ -50,12 +59,12 @@ def create_rtc_table(conn_csv, cur_csv, table_name):
         )
         conn_csv.commit()
     except Exception as e:
-        print(f"RTC: an error occurred while trying to create a table: {e}")
+        logging.error(f"RTC: an error occurred while trying to create a table: {e}")
         return
 
 
 def create_doc_table(conn_csv, cur_csv, table_name):
-    print(f"Creating new doc table {table_name}...")
+    logging.info(f"Creating new doc table {table_name}...")
     try:
         cur_csv.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
@@ -68,7 +77,7 @@ def create_doc_table(conn_csv, cur_csv, table_name):
         )
         conn_csv.commit()
     except Exception as e:
-        print(f"Doc Table: an error occurred while trying to create a table: {e}")
+        logging.error(f"Doc Table: an error occurred while trying to create a table: {e}")
 
 
 def get_pretty_category_names(base_dir, category_dir):
@@ -102,6 +111,7 @@ def get_service_categories(base_dir, category_dir, services_dir):
     all_data = []
 
     for file_path in all_files:
+        internal_services = []
         if file_path.endswith('.yaml'):
             response = requests.get(f"{BASE_URL}{base_dir}{file_path}", headers=headers)
             response.raise_for_status()
@@ -110,16 +120,22 @@ def get_service_categories(base_dir, category_dir, services_dir):
             file_content = base64.b64decode(file_content_base64).decode('utf-8')
 
             data_dict = yaml.safe_load(file_content)
-            technical_name = data_dict.get('service_category')
-            data_dict['service_category'] = pretty_names.get(technical_name, technical_name)
-            teams = data_dict.get('teams', [])
-            if teams:
-                squad_name = teams[0].get('name', '')
-                data_dict['squad'] = squad_name
+            if data_dict['environment'] == "internal":
+                internal_services.append(data_dict['service_uri'])
+                with open('internal_services.csv', 'a', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(internal_services)
             else:
-                data_dict['squad'] = ''
+                technical_name = data_dict.get('service_category')
+                data_dict['service_category'] = pretty_names.get(technical_name, technical_name)
+                teams = data_dict.get('teams', [])
+                if teams:
+                    squad_name = teams[0].get('name', '')
+                    data_dict['squad'] = squad_name
+                else:
+                    data_dict['squad'] = ''
 
-            all_data.append(data_dict)
+                all_data.append(data_dict)
 
     return all_data
 
@@ -138,8 +154,8 @@ def get_docs_info(base_dir, doc_dir):
 
             file_content_base64 = response.json()['content']
             file_content = base64.b64decode(file_content_base64).decode('utf-8')
-
             data_dict = yaml.safe_load(file_content)
+
             all_data.append(data_dict)
 
     return all_data
@@ -147,7 +163,7 @@ def get_docs_info(base_dir, doc_dir):
 
 def insert_services_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
-        print(f"Unexpected data type: {type(item)}, value: {item}")
+        logging.error(f"Unexpected data type: {type(item)}, value: {item}")
         return
 
     insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Type")
@@ -195,7 +211,7 @@ def update_squad_title(conn, styring_url, table_name):
 
 def insert_docs_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
-        print(f"Unexpected data type: {type(item)}, value: {item}")
+        logging.error(f"Unexpected data type: {type(item)}, value: {item}")
         return
 
     insert_query = f"""INSERT INTO {table_name} ("Service Type", "Title", "Document Type", "Link")
@@ -221,11 +237,11 @@ def add_obsolete_services(conn_csv, cur_csv):
 
 
 def copy_rtc(cur_csv, cursors, conns, rtctable):
-    print(f"Start copy {rtctable} to other DBs...")
+    logging.info(f"Start copy {rtctable} to other DBs...")
     try:
         cur_csv.execute(f"SELECT * FROM {rtctable};")
     except psycopg2.Error as e:
-        print(f"Error fetching data from {rtctable}: {e}")
+        logging.error(f"Error fetching data from {rtctable}: {e}")
         return
 
     rows = cur_csv.fetchall()
@@ -243,7 +259,7 @@ def copy_rtc(cur_csv, cursors, conns, rtctable):
                 cur.execute(f"INSERT INTO {rtctable} VALUES ({placeholders});", row)
             conn.commit()
         except psycopg2.Error as e:
-            print(f"Error copying data to {rtctable} in target DB: {e}")
+            logging.error(f"Error copying data to {rtctable} in target DB: {e}")
             conn.rollback()
 
 
@@ -305,3 +321,8 @@ if __name__ == "__main__":
     add_obsolete_services(conn_csv, cur_csv)
     conn_csv.commit()
     conn_csv.close()
+
+    end_time = time.time()
+    execution_time = end_time - start_time
+    minutes, seconds = divmod(execution_time, 60)
+    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
