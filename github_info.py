@@ -4,10 +4,13 @@ import re
 import psycopg2
 from github import Github
 import time
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 start_time = time.time()
 
-print("**GITHUB INFO SCRIPT IS RUNNING**")
+logging.info("**GITHUB INFO SCRIPT IS RUNNING**")
 
 github_token = os.getenv("GITHUB_TOKEN")
 github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
@@ -30,7 +33,7 @@ def check_env_variables():
 
 
 def connect_to_db(db_name):
-    print(f"Connecting to Postgres ({db_name})...")
+    logging.info(f"Connecting to Postgres ({db_name})...")
     try:
         return psycopg2.connect(
             host=db_host,
@@ -40,18 +43,18 @@ def connect_to_db(db_name):
             password=db_password
         )
     except psycopg2.Error as e:
-        print(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        logging.info(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
         return None
 
 
 def extract_pull_links(cur, table_name):
-    print("Extracting links...")
+    logging.info("Extracting links...")
     try:
         cur.execute(f'SELECT "Auto PR URL" FROM {table_name};')
         pull_links = [row[0] for row in cur.fetchall()]
         return pull_links
     except Exception as e:
-        print(f"Extracting pull links: an error occurred while extracting pull links from {table_name}: {str(e)}")
+        logging.info(f"Extracting pull links: an error occurred while extracting pull links from {table_name}: {str(e)}")
 
 
 def get_auto_prs(gh_string, repo_name, access_token, pull_links):
@@ -67,12 +70,12 @@ def get_auto_prs(gh_string, repo_name, access_token, pull_links):
             if body and any(link in body for link in pull_links):
                 auto_prs.append(pr)
     except requests.exceptions.RequestException as e:
-        print(f"Get PRs: an error occurred while trying to get pull requests: {e}")
+        logging.info(f"Get PRs: an error occurred while trying to get pull requests: {e}")
     return auto_prs
 
 
 def add_github_columns(cur, conn, table_name):
-    print(f"Add info to the Postgres ({table_name})...")
+    logging.info(f"Add info to the Postgres ({table_name})...")
     try:
         cur.execute(
             f'''
@@ -83,11 +86,11 @@ def add_github_columns(cur, conn, table_name):
         )
         conn.commit()
     except requests.exceptions.RequestException as e:
-        print(f"Add new column: an error occurred while trying to addidng info to the {table_name}: {e}")
+        logging.info(f"Add new column: an error occurred while trying to addidng info to the {table_name}: {e}")
 
 
 def update_orphaned_prs(org_str, cur, conn, rows, auto_prs, table_name):
-    print(f"Processing orphaned PRs for {org_str}...")
+    logging.info(f"Processing orphaned PRs for {org_str}...")
     for row in rows:
         pr_id, pull_link = row
         gitea_repo_name = re.search(rf"/{org_str}/(.+?)/", pull_link).group(1)
@@ -109,7 +112,7 @@ def update_orphaned_prs(org_str, cur, conn, rows, auto_prs, table_name):
                     (state, merged, pr_id)
                 )
             except Exception as e:
-                print(f"Orphanes: an error occurred while updating orphaned PRs in the {table_name} table: {str(e)}")
+                logging.info(f"Orphanes: an error occurred while updating orphaned PRs in the {table_name} table: {str(e)}")
 
         else:
             continue
@@ -129,7 +132,7 @@ def main(org, gorg, table_name, token):
     pull_links = extract_pull_links(cur, table_name)
 
     auto_prs = []
-    print("Gathering PRs info...")
+    logging.info("Gathering PRs info...")
     for repo_name in repo_names:
         auto_prs += get_auto_prs(gorg, repo_name, github_token, pull_links)
 
@@ -159,10 +162,10 @@ if __name__ == "__main__":
         main(f"{org_string}-swiss", f"{gh_org_str}-swiss", f"{orph_table}_swiss", github_fallback_token)
         done = True
     if done:
-        print("Github operations successfully done!")
+        logging.info("Github operations successfully done!")
 
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    print(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
 

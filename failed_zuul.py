@@ -5,10 +5,13 @@ import re
 import psycopg2
 from datetime import datetime
 import time
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 start_time = time.time()
 
-print("**FAILED PRS SCRIPT IS RUNNING**")
+logging.info("**FAILED PRS SCRIPT IS RUNNING**")
 
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
@@ -34,7 +37,7 @@ def check_env_variables():
 
 
 def connect_to_db(db_name):
-    print(f"Connecting to Postgres ({db_name})...")
+    logging.info(f"Connecting to Postgres ({db_name})...")
     try:
         return psycopg2.connect(
             host=db_host,
@@ -44,7 +47,7 @@ def connect_to_db(db_name):
             password=db_password
         )
     except psycopg2.Error as e:
-        print(f"Connecting to Postgres: an error occurred while trying to connect to the database {db_name}: {e}")
+        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database {db_name}: {e}")
         return None
 
 
@@ -66,9 +69,9 @@ def create_prs_table(conn_zuul, cur_zuul, table_name):
             );'''
         )
         conn_zuul.commit()
-        print(f"Table {table_name} has been created successfully")
+        logging.info(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
-        print(f"Create table: an error occurred while trying to create a table {table_name} in the database: {e}")
+        logging.error(f"Create table: an error occurred while trying to create a table {table_name} in the database: {e}")
 
 
 def is_repo_empty(org, repo, gitea_token):
@@ -82,17 +85,17 @@ def is_repo_empty(org, repo, gitea_token):
         return False
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 409:  # Conflict error which might mean empty repo, skip this repo to avoid script hangs
-            print(f"Repo {repo} is empty, skipping")
+            logging.info(f"Repo {repo} is empty, skipping")
             return True
-        print(f"Check repo: an error occurred while trying to get commits for repo {repo}: {e}")
+        logging.error(f"Check repo: an error occurred while trying to get commits for repo {repo}: {e}")
         return False
     except requests.exceptions.RequestException as e:
-        print(f"Check repo: an error occurred while trying to get commits for repo {repo}: {e}")
+        logging.error(f"Check repo: an error occurred while trying to get commits for repo {repo}: {e}")
         return False
 
 
 def get_repos(org, gitea_token):
-    print("Gathering repos...")
+    logging.info("Gathering repos...")
     repos = []
     page = 1
     while True:
@@ -100,13 +103,13 @@ def get_repos(org, gitea_token):
             repos_resp = session.get(f"{gitea_api_endpoint}/orgs/{org}/repos?page={page}&limit=50&token={gitea_token}")
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Get repos: an error occurred while trying to get repos: {e}")
+            logging.error(f"Get repos: an error occurred while trying to get repos: {e}")
             break
 
         try:
             repos_dict = json.loads(repos_resp.content.decode())
         except json.JSONDecodeError as e:
-            print(f"Get repos: an error occurred while trying to decode JSON: {e}")
+            logging.error(f"Get repos: an error occurred while trying to decode JSON: {e}")
             break
 
         for repo in repos_dict:
@@ -119,7 +122,7 @@ def get_repos(org, gitea_token):
         else:
             page += 1
 
-    print(len(repos), "repos has been processed")
+    logging.info(f"{len(repos)} repos have been processed")
 
     return repos
 
@@ -130,7 +133,7 @@ def extract_number_from_body(text):
         if match:
             return int(match.group()[1:])
     except ValueError as e:
-        print(f"Extract number from body: an error occurred while converting match group to int: {e}")
+        logging.error(f"Extract number from body: an error occurred while converting match group to int: {e}")
         return None
     return None
 
@@ -166,17 +169,17 @@ def get_f_pr_commits(org, repo, f_pr_number, gitea_token):
             return zuul_url, status, created_at, days_passed
 
     except requests.exceptions.RequestException as e:
-        print(
+        logging.error(
             f"Get failed PR commits: an error occurred while trying to get pull requests of {repo} repo for {org} org: {e}")
 
 
 def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
-    # print(f"Processing {repo}...")  # Debug print, uncomment in case of script hangs
+    # logging.info(f"Processing {repo}...")  # Debug print, uncomment in case of script hangs
     try:
         if repo != "doc-exports":
             page = 1
             while True:
-                # print(f"Fetching PRs for {repo}, page {page}...")  # Debug print, uncomment in case of script hangs
+                # logging.info(f"Fetching PRs for {repo}, page {page}...")  # Debug print, uncomment in case of script hangs
                 repo_resp = session.get(
                     f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=open&page={page}&limit=1000&token={gitea_token}")
                 pull_requests = []
@@ -184,7 +187,7 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
                     try:
                         pull_requests = json.loads(repo_resp.content.decode("utf-8"))
                     except json.JSONDecodeError as e:
-                        print(f"Get parent PR: an error occurred while decoding JSON: {e}")
+                        logging.error(f"Get parent PR: an error occurred while decoding JSON: {e}")
                     if not pull_requests:
                         break
 
@@ -214,7 +217,7 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
                                      )
                                     conn_zuul.commit()
                             except Exception as e:
-                                print(f"Failed PRs: an error occurred while inserting into {table_name} table: {e}")
+                                logging.error(f"Failed PRs: an error occurred while inserting into {table_name} table: {e}")
                         else:
                             continue
                 elif org == "docs-swiss" and repo_resp.status_code != 200:
@@ -222,11 +225,11 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
                 page += 1
 
     except Exception as e:
-        print('Failed PRs: an error occurred:', e)
+        logging.error('Failed PRs: an error occurred:', e)
 
 
 def update_squad_and_title(conn_zuul, cur_zuul, rtctable, opentable):
-    print(f"Updating squads and titles in {opentable}...")
+    logging.info(f"Updating squads and titles in {opentable}...")
     try:
         cur_zuul.execute(f"SELECT * FROM {opentable};")
         failed_prs_rows = cur_zuul.fetchall()
@@ -262,7 +265,7 @@ def update_squad_and_title(conn_zuul, cur_zuul, rtctable, opentable):
             conn_zuul.commit()
 
     except Exception as e:
-        print(f"Error updating squad and title: {e}")
+        logging.error(f"Error updating squad and title: {e}")
         conn_zuul.rollback()
 
 
@@ -279,7 +282,7 @@ def main(org, table_name, rtc):
 
     repos = get_repos(org, gitea_token)
 
-    print("Gathering PRs info...")
+    logging.info("Gathering PRs info...")
     for repo in repos:
         get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name)
 
@@ -300,4 +303,4 @@ if __name__ == "__main__":
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    print(f"Script failed_zuul.py executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info(f"Script failed_zuul.py executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
