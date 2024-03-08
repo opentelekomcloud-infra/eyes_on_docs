@@ -47,6 +47,8 @@ def csv_erase(filenames):
             if file_path.exists():
                 file_path.unlink()
                 logging.info(f"CSV {filename} has been deleted")
+            else:
+                continue
     except Exception as e:
         logging.error(f"CSV erase: error has been occured: {e}")
 
@@ -538,7 +540,7 @@ if __name__ == "__main__":
     if done:
         logging.info("Github operations successfully done!")
 
-    csv_erase(["proposalbot_prs.csv", "doc_exports_prs.csv", "orphaned_prs.csv", "internal_services.csv"])
+    csv_erase(["proposalbot_prs.csv", "doc_exports_prs.csv", "orphaned_prs.csv"])
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
