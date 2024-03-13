@@ -6,6 +6,7 @@ import psycopg2
 import time
 import logging
 import csv
+import pathlib
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -27,6 +28,17 @@ db_orph = os.getenv("DB_ORPH")
 db_zuul = os.getenv("DB_ZUUL")
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
+
+
+def csv_erase(filenames):
+    try:
+        for filename in filenames:
+            file_path = pathlib.Path(filename)
+            if file_path.exists():
+                file_path.unlink()
+                logging.info(f"CSV {filename} has been deleted")
+    except Exception as e:
+        logging.error(f"CSV erase: error has been occured: {e}")
 
 
 def connect_to_db(db):
@@ -314,6 +326,8 @@ if __name__ == "__main__":
     base_rtc_table = "repo_title_category"
     base_doc_table = "doc_types"
 
+    csv_erase("internal_services.csv")
+
     main(base_dir_regular, base_rtc_table, base_doc_table, styring_url_regular)
     main(base_dir_swiss, f"{base_rtc_table}_swiss", f"{base_doc_table}_swiss", styring_url_swiss)
     conn_csv = connect_to_db(db_csv)
@@ -321,6 +335,8 @@ if __name__ == "__main__":
     add_obsolete_services(conn_csv, cur_csv)
     conn_csv.commit()
     conn_csv.close()
+
+    csv_erase("internal_services.csv")
 
     end_time = time.time()
     execution_time = end_time - start_time
