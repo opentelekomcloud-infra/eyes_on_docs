@@ -336,8 +336,6 @@ if __name__ == "__main__":
     conn_csv.commit()
     conn_csv.close()
 
-    csv_erase("internal_services.csv")
-
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
