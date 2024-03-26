@@ -5,8 +5,6 @@ import base64
 import psycopg2
 import time
 import logging
-import csv
-import pathlib
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -28,17 +26,6 @@ db_orph = os.getenv("DB_ORPH")
 db_zuul = os.getenv("DB_ZUUL")
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
-
-
-def csv_erase(filenames):
-    try:
-        for filename in filenames:
-            file_path = pathlib.Path(filename)
-            if file_path.exists():
-                file_path.unlink()
-                logging.info(f"CSV {filename} has been deleted")
-    except Exception as e:
-        logging.error(f"CSV erase: error has been occured: {e}")
 
 
 def connect_to_db(db):
@@ -92,6 +79,20 @@ def create_doc_table(conn_csv, cur_csv, table_name):
         logging.error(f"Doc Table: an error occurred while trying to create a table: {e}")
 
 
+def create_internal_table(conn_csv, cur_csv):
+    logging.info(f"Creating new doc table internal_services...")
+    try:
+        cur_csv.execute(
+            f'''CREATE TABLE IF NOT EXISTS internal_services (
+            id SERIAL PRIMARY KEY,
+            "Title" VARCHAR(255)
+            );'''
+        )
+        conn_csv.commit()
+    except Exception as e:
+        logging.error(f"Doc Table: an error occurred while trying to create a table: {e}")
+
+
 def get_pretty_category_names(base_dir, category_dir):
     response = requests.get(f"{BASE_URL}{category_dir}", headers=headers)
     response.raise_for_status()
@@ -123,7 +124,6 @@ def get_service_categories(base_dir, category_dir, services_dir):
     all_data = []
 
     for file_path in all_files:
-        internal_services = []
         if file_path.endswith('.yaml'):
             response = requests.get(f"{BASE_URL}{base_dir}{file_path}", headers=headers)
             response.raise_for_status()
@@ -133,10 +133,7 @@ def get_service_categories(base_dir, category_dir, services_dir):
 
             data_dict = yaml.safe_load(file_content)
             if data_dict['environment'] == "internal":
-                internal_services.append(data_dict['service_uri'])
-                with open('internal_services.csv', 'a', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow(internal_services)
+                insert_internal_data(data_dict, conn_csv, cur_csv)
             else:
                 technical_name = data_dict.get('service_category')
                 data_dict['service_category'] = pretty_names.get(technical_name, technical_name)
@@ -186,7 +183,6 @@ def insert_services_data(item, conn_csv, cur_csv, table_name):
     category = item.get("service_category")
     squad = item.get("squad")
     stype = item.get("service_type")
-
 
     cur_csv.execute(insert_query, (repository, title, category, squad, stype))
 
@@ -238,6 +234,20 @@ def insert_docs_data(item, conn_csv, cur_csv, table_name):
     conn_csv.commit()
 
 
+def insert_internal_data(item, conn_csv, cur_csv):
+    if not isinstance(item, dict):
+        logging.error(f"Unexpected data type: {type(item)}, value: {item}")
+        return
+
+    insert_query = f"""INSERT INTO internal_services ("Title")
+                      VALUES (%s);"""
+
+    title = item.get("service_title")
+
+    cur_csv.execute(insert_query, (title,))
+    conn_csv.commit()
+
+
 def add_obsolete_services(conn_csv, cur_csv):
     data_to_insert = [
         {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category": "Other", "service_type": "cdn", "squad": "Other"},
@@ -281,18 +291,6 @@ def main(base_dir, rtctable, doctable, styring_path):
     doc_dir = f"{base_dir}otc_metadata/data/documents"
     styring_url = f"{BASE_URL}{styring_path}{gitea_token}"
 
-    conn_orph = connect_to_db(db_orph)
-    cur_orph = conn_orph.cursor()
-
-    conn_zuul = connect_to_db(db_zuul)
-    cur_zuul = conn_zuul.cursor()
-
-    conn_csv = connect_to_db(db_csv)
-    cur_csv = conn_csv.cursor()
-
-    conns = [conn_orph, conn_zuul]
-    cursors = [cur_orph, cur_zuul]
-
     cur_csv.execute(f"DROP TABLE IF EXISTS {rtctable}, {doctable}")
     conn_csv.commit()
     for conn, cur in zip(conns, cursors):
@@ -313,10 +311,6 @@ def main(base_dir, rtctable, doctable, styring_path):
 
     copy_rtc(cur_csv, cursors, conns, rtctable)
 
-    for conn in conns:
-        conn.close()
-    conn_csv.close()
-
 
 if __name__ == "__main__":
     base_dir_swiss = "/repos/infra/otc-metadata-swiss/contents/"
@@ -326,7 +320,21 @@ if __name__ == "__main__":
     base_rtc_table = "repo_title_category"
     base_doc_table = "doc_types"
 
-    csv_erase("internal_services.csv")
+    conn_orph = connect_to_db(db_orph)
+    cur_orph = conn_orph.cursor()
+
+    conn_zuul = connect_to_db(db_zuul)
+    cur_zuul = conn_zuul.cursor()
+
+    conn_csv = connect_to_db(db_csv)
+    cur_csv = conn_csv.cursor()
+
+    conns = [conn_orph, conn_zuul]
+    cursors = [cur_orph, cur_zuul]
+
+    cur_csv.execute(f"DROP TABLE IF EXISTS internal_services")
+    conn_csv.commit()
+    create_internal_table(conn_csv, cur_csv)
 
     main(base_dir_regular, base_rtc_table, base_doc_table, styring_url_regular)
     main(base_dir_swiss, f"{base_rtc_table}_swiss", f"{base_doc_table}_swiss", styring_url_swiss)

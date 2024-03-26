@@ -90,14 +90,17 @@ def create_prs_table(conn_csv, cur_csv, table_name):
         logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database: {e}")
 
 
-def get_repos(org, gitea_token):
+def get_repos(org, cur_csv, gitea_token):
     repos = []
+
+    try:
+        cur_csv.execute(f"SELECT DISTINCT \"Title\" FROM internal_services;")
+        exclude_repos = [row[0] for row in cur_csv.fetchall()]
+    except Exception as e:
+        logging.error(f"Fetching exclude repos from internal_services: {e}")
+        return repos
+
     page = 1
-    exclude_repos = []
-    with open("internal_services.csv", "r") as f:
-        internal = csv.reader(f)
-        for row in internal:
-            exclude_repos.extend(row)
 
     while True:
         try:
@@ -126,8 +129,8 @@ def get_repos(org, gitea_token):
             page += 1
 
     logging.info(f"{len(repos)} repos have been processed")
-
     return repos
+
 
 
 def get_parent_pr(org, repo):
@@ -499,7 +502,7 @@ def main(org, gh_org, rtctable, opentable, string, token):
 
     create_prs_table(conn_csv, cur_csv, opentable)
 
-    repos = get_repos(org, gitea_token)
+    repos = get_repos(org, conn_csv, cur_csv, gitea_token)
     logging.info("Gathering parent PRs...")
     for repo in repos:
         get_parent_pr(org, repo)
