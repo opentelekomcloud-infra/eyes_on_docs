@@ -502,7 +502,7 @@ def main(org, gh_org, rtctable, opentable, string, token):
 
     create_prs_table(conn_csv, cur_csv, opentable)
 
-    repos = get_repos(org, conn_csv, cur_csv, gitea_token)
+    repos = get_repos(org, cur_csv, gitea_token)
     logging.info("Gathering parent PRs...")
     for repo in repos:
         get_parent_pr(org, repo)
