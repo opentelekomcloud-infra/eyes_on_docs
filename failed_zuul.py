@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 start_time = time.time()
 
-logging.info("**FAILED PRS SCRIPT IS RUNNING**")
+logging.info("-------------------------FAILED PRS SCRIPT IS RUNNING-------------------------")
 
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()

@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # timer for counting script time execution
 start_time = time.time()
 
-logging.info("**SCHEDULER IS RUNNING**")
+logging.info("-------------------------SCHEDULER IS RUNNING-------------------------")
 
 # Database and Zulip configuration, environment vars are used
 db_host = os.getenv("DB_HOST")

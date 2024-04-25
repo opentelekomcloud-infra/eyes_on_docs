@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 start_time = time.time()
 
-logging.info("**OPEN PRs SCRIPT IS RUNNING**")
+logging.info("-------------------------OPEN PRs SCRIPT IS RUNNING-------------------------")
 
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
@@ -90,14 +90,14 @@ def create_prs_table(conn_csv, cur_csv, table_name):
         logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database: {e}")
 
 
-def get_repos(org, cur_csv, gitea_token):
+def get_repos(org, cur_csv, gitea_token, rtc_table):
     repos = []
 
     try:
-        cur_csv.execute(f"SELECT DISTINCT \"Title\" FROM internal_services;")
+        cur_csv.execute(f"SELECT DISTINCT \"Title\" FROM {rtc_table} WHERE \"Env\" IN ('internal', 'hidden');")
         exclude_repos = [row[0] for row in cur_csv.fetchall()]
     except Exception as e:
-        logging.error(f"Fetching exclude repos from internal_services: {e}")
+        logging.error(f"Fetching exclude repos for internal services: {e}")
         return repos
 
     page = 1
@@ -132,8 +132,30 @@ def get_repos(org, cur_csv, gitea_token):
     return repos
 
 
+def check_pull_requests_exist(org, repo):
+    try:
+        initial_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=all&limit=1&token={gitea_token}")
+        initial_resp.raise_for_status()
+        pulls = json.loads(initial_resp.content.decode())
+        if not pulls:
+            logging.info(f"No pull requests found in {repo}. Skipping.")
+            return False
+        return True
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404:
+            logging.info(f"No repository or pull requests found in {repo} (404 error). Skipping.")
+            return False
+        else:
+            logging.error(f"Error checking pull requests in {repo}: {e}")
+            return False
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Unexpected error when checking pull requests in {repo}: {e}")
+        return False
+
 
 def get_parent_pr(org, repo):
+    if not check_pull_requests_exist(org, repo):
+        return
     try:
         path = pathlib.Path("proposalbot_prs.csv")
         if path.exists() is False:
@@ -367,7 +389,7 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                 doc_exports_prs.append(row)
 
     except IOError as e:
-        logging.error(f"Open and orphans: an error occurred while trying to read the file: {e}")
+        logging.error(f"Open and orphans for {opentable}: an error occurred while trying to read the file: {e}")
         return
 
     orphaned = []
@@ -386,7 +408,7 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                         """, tuple(pr1))
                         conn_orph.commit()
                     except Exception as e:
-                        logging.error(f"Open and orphans: an error occurred while inserting into the orphaned_prs table: {e}")
+                        logging.error(f"Open and orphans for ORPHANS and {opentable}: an error occurred while inserting into the orphaned_prs table: {e}")
 
             elif pr1[0] == pr2[0] and pr1[4] == pr2[3] == "open":
                 if pr1 not in open_prs:
@@ -400,7 +422,7 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                         """, tuple(pr1))
                         conn_csv.commit()
                     except Exception as e:
-                        logging.error(f"Open and orphans: an error occurred while inserting into the open_prs table: {e}")
+                        logging.error(f"Open and orphans for OPEN and {opentable}: an error occurred while inserting into the open_prs table: {e}")
 
 
 def gitea_pr_info(org, parent_pr_name):
@@ -502,7 +524,7 @@ def main(org, gh_org, rtctable, opentable, string, token):
 
     create_prs_table(conn_csv, cur_csv, opentable)
 
-    repos = get_repos(org, cur_csv, gitea_token)
+    repos = get_repos(org, cur_csv, gitea_token, rtctable)
     logging.info("Gathering parent PRs...")
     for repo in repos:
         get_parent_pr(org, repo)
