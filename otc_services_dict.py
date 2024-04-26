@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 start_time = time.time()
 
-logging.info("**OTC SERVICES DICT SCRIPT IS RUNNING**")
+logging.info("-------------------------OTC SERVICES DICT SCRIPT IS RUNNING-------------------------")
 
 BASE_URL = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 
@@ -53,7 +53,7 @@ def create_rtc_table(conn_csv, cur_csv, table_name):
             "Title" VARCHAR(255),
             "Category" VARCHAR(255),
             "Squad" VARCHAR(255),
-            "Type" VARCHAR(255)
+            "Env" VARCHAR(255)
             );'''
         )
         conn_csv.commit()
@@ -72,20 +72,6 @@ def create_doc_table(conn_csv, cur_csv, table_name):
             "Title" VARCHAR(255),
             "Document Type" VARCHAR(255),
             "Link" VARCHAR(255)
-            );'''
-        )
-        conn_csv.commit()
-    except Exception as e:
-        logging.error(f"Doc Table: an error occurred while trying to create a table: {e}")
-
-
-def create_internal_table(conn_csv, cur_csv):
-    logging.info(f"Creating new doc table internal_services...")
-    try:
-        cur_csv.execute(
-            f'''CREATE TABLE IF NOT EXISTS internal_services (
-            id SERIAL PRIMARY KEY,
-            "Title" VARCHAR(255)
             );'''
         )
         conn_csv.commit()
@@ -132,19 +118,16 @@ def get_service_categories(base_dir, category_dir, services_dir):
             file_content = base64.b64decode(file_content_base64).decode('utf-8')
 
             data_dict = yaml.safe_load(file_content)
-            if data_dict['environment'] == "internal":
-                insert_internal_data(data_dict, conn_csv, cur_csv)
+            technical_name = data_dict.get('service_category')
+            data_dict['service_category'] = pretty_names.get(technical_name, technical_name)
+            teams = data_dict.get('teams', [])
+            if teams:
+                squad_name = teams[0].get('name', '')
+                data_dict['squad'] = squad_name
             else:
-                technical_name = data_dict.get('service_category')
-                data_dict['service_category'] = pretty_names.get(technical_name, technical_name)
-                teams = data_dict.get('teams', [])
-                if teams:
-                    squad_name = teams[0].get('name', '')
-                    data_dict['squad'] = squad_name
-                else:
-                    data_dict['squad'] = ''
+                data_dict['squad'] = ''
 
-                all_data.append(data_dict)
+            all_data.append(data_dict)
 
     return all_data
 
@@ -163,8 +146,8 @@ def get_docs_info(base_dir, doc_dir):
 
             file_content_base64 = response.json()['content']
             file_content = base64.b64decode(file_content_base64).decode('utf-8')
-            data_dict = yaml.safe_load(file_content)
 
+            data_dict = yaml.safe_load(file_content)
             all_data.append(data_dict)
 
     return all_data
@@ -175,16 +158,17 @@ def insert_services_data(item, conn_csv, cur_csv, table_name):
         logging.error(f"Unexpected data type: {type(item)}, value: {item}")
         return
 
-    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Type")
+    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Env")
                       VALUES (%s, %s, %s, %s, %s);"""
 
     repository = item.get("service_uri")
     title = item.get("service_title")
     category = item.get("service_category")
     squad = item.get("squad")
-    stype = item.get("service_type")
+    senv = item.get("environment")
 
-    cur_csv.execute(insert_query, (repository, title, category, squad, stype))
+
+    cur_csv.execute(insert_query, (repository, title, category, squad, senv))
 
     conn_csv.commit()
 
@@ -234,20 +218,6 @@ def insert_docs_data(item, conn_csv, cur_csv, table_name):
     conn_csv.commit()
 
 
-def insert_internal_data(item, conn_csv, cur_csv):
-    if not isinstance(item, dict):
-        logging.error(f"Unexpected data type: {type(item)}, value: {item}")
-        return
-
-    insert_query = f"""INSERT INTO internal_services ("Title")
-                      VALUES (%s);"""
-
-    title = item.get("service_title")
-
-    cur_csv.execute(insert_query, (title,))
-    conn_csv.commit()
-
-
 def add_obsolete_services(conn_csv, cur_csv):
     data_to_insert = [
         {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category": "Other", "service_type": "cdn", "squad": "Other"},
@@ -291,6 +261,18 @@ def main(base_dir, rtctable, doctable, styring_path):
     doc_dir = f"{base_dir}otc_metadata/data/documents"
     styring_url = f"{BASE_URL}{styring_path}{gitea_token}"
 
+    conn_orph = connect_to_db(db_orph)
+    cur_orph = conn_orph.cursor()
+
+    conn_zuul = connect_to_db(db_zuul)
+    cur_zuul = conn_zuul.cursor()
+
+    conn_csv = connect_to_db(db_csv)
+    cur_csv = conn_csv.cursor()
+
+    conns = [conn_orph, conn_zuul]
+    cursors = [cur_orph, cur_zuul]
+
     cur_csv.execute(f"DROP TABLE IF EXISTS {rtctable}, {doctable}")
     conn_csv.commit()
     for conn, cur in zip(conns, cursors):
@@ -311,6 +293,10 @@ def main(base_dir, rtctable, doctable, styring_path):
 
     copy_rtc(cur_csv, cursors, conns, rtctable)
 
+    for conn in conns:
+        conn.close()
+    conn_csv.close()
+
 
 if __name__ == "__main__":
     base_dir_swiss = "/repos/infra/otc-metadata-swiss/contents/"
@@ -319,22 +305,6 @@ if __name__ == "__main__":
     styring_url_swiss = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-swiss/data.yaml?token="
     base_rtc_table = "repo_title_category"
     base_doc_table = "doc_types"
-
-    conn_orph = connect_to_db(db_orph)
-    cur_orph = conn_orph.cursor()
-
-    conn_zuul = connect_to_db(db_zuul)
-    cur_zuul = conn_zuul.cursor()
-
-    conn_csv = connect_to_db(db_csv)
-    cur_csv = conn_csv.cursor()
-
-    conns = [conn_orph, conn_zuul]
-    cursors = [cur_orph, cur_zuul]
-
-    cur_csv.execute(f"DROP TABLE IF EXISTS internal_services")
-    conn_csv.commit()
-    create_internal_table(conn_csv, cur_csv)
 
     main(base_dir_regular, base_rtc_table, base_doc_table, styring_url_regular)
     main(base_dir_swiss, f"{base_rtc_table}_swiss", f"{base_doc_table}_swiss", styring_url_swiss)

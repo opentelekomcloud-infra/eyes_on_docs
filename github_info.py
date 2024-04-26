@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 start_time = time.time()
 
-logging.info("**GITHUB INFO SCRIPT IS RUNNING**")
+logging.info("-------------------------GITHUB INFO SCRIPT IS RUNNING-------------------------")
 
 github_token = os.getenv("GITHUB_TOKEN")
 github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")

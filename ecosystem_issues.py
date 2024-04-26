@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 start_time = time.time()
 
-logging.info("**ECOSYSTEM ISSUES SCRIPT IS RUNNING**")
+logging.info("-------------------------ECOSYSTEM ISSUES SCRIPT IS RUNNING-------------------------")
 
 github_token = os.getenv("GITHUB_TOKEN")
 github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")

@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 start_time = time.time()
 
-logging.error("**OPEN ISSUES SCRIPT IS RUNNING**")
+logging.error("-------------------------OPEN ISSUES SCRIPT IS RUNNING-------------------------")
 
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
@@ -72,7 +72,7 @@ def create_open_issues_table(conn, cur, table_name):
             );'''
         )
         conn.commit()
-        logging.error(f"Table {table_name} has been created successfully")
+        logging.info(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
         logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database {db_name}: {e}")
 
