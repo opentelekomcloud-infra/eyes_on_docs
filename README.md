@@ -28,7 +28,7 @@ Notification anatomy
 ********************
 This is how typical notification looks like. Since notifications do not differ in their structure, we can give an example of one of them.
 
-![Notification anatomy](https://github.com/opentelekomcloud-infra/grafana-docs-monitoring/raw/documentation/alert_anatomy.png)
+![Notification anatomy](https://github.com/opentelekomcloud-infra/grafana-docs-monitoring/blob/documentation/alert_anatomy.PNG)
 
 **Alert name:** name of an alert. Could be *Orphaned PRs Alert,* *Outdated Documents Alert* or *Open Issues Alert.*\
 **Alert summary:** what happened, what is this alert about.\
