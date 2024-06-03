@@ -25,10 +25,14 @@ api_key = os.getenv("OTC_BOT_API")
 
 # Zulip stream and topic mapping for each squad
 squad_streams = {
-    "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
-    "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
-    "Compute Squad": {"stream": "compute", "topic": "hc_alerts topic"},
-    "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"}
+    # "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
+    # "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
+    # "Compute Squad": {"stream": "compute", "topic": "hc_alerts topic"},
+    # "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"}
+    "Database Squad": {"stream": "4grafana", "topic": "testing"},
+    "Big Data and AI Squad": {"stream": "grafana", "topic": "testing"},
+    "Orchestration Squad": {"stream": "4grafana", "topic": "testing"},
+    "Compute Squad": {"stream": "grafana", "topic": "testing"}
 }
 
 
@@ -59,6 +63,7 @@ def connect_to_db(db_name):
 
 
 def check_orphans(conn_orph, squad_name, stream_name, topic_name):
+    results = []
     cur_orph = conn_orph.cursor()
     tables = ["open_prs", "open_prs_swiss"]
     for table in tables:
@@ -79,6 +84,7 @@ def check_orphans(conn_orph, squad_name, stream_name, topic_name):
 
 
 def check_open_issues(conn, squad_name, stream_name, topic_name):
+    results = []
     cur = conn.cursor()
     tables = ["open_issues", "open_issues_swiss"]
     for table in tables:
@@ -99,6 +105,7 @@ def check_open_issues(conn, squad_name, stream_name, topic_name):
 
 
 def check_outdated_docs(conn, squad_name, stream_name, topic_name):
+    results = []
     cur = conn.cursor()
     tables = ["last_update_commit", "last_update_commit_swiss"]
     for table in tables:
@@ -119,6 +126,7 @@ def check_outdated_docs(conn, squad_name, stream_name, topic_name):
 
 
 def send_zulip_notification(row, api_key, stream_name, topic_name):
+    message = []
     current_date = datetime.now().strftime("%Y-%m-%d")
     client = zulip.Client(email="apimon-bot@zulip.tsi-dev.otc-service.com", api_key=api_key, site="https://zulip.tsi-vc.otc-service.com")
     if row["type"] == "doc":

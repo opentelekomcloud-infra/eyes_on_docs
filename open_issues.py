@@ -164,7 +164,7 @@ def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name)
         logging.error(f"Issues table: an error occurred while posting data to Postgres: {e}")
         conn.rollback()
 
-    service_pattern = re.compile(rf"(?<={gh_org}\/).([^\/]+)")
+    service_pattern = re.compile(rf"(?<={gh_org}/).([^/]+)")
     for hub in github_issues:
         if 'pull_request' in hub:
             continue
