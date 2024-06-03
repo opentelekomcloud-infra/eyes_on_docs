@@ -64,7 +64,8 @@ def create_open_issues_table(conn, cur, table_name):
         conn.commit()
         logging.info(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
-        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database {db_name}: {e}")
+        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database \
+                        {db_name}: {e}")
 
 
 def insert_issue_data(conn, cur, table_name, repo, issue):

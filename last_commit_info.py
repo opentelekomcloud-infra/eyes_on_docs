@@ -64,7 +64,8 @@ def create_commits_table(conn, cur, table_name):
         conn.commit()
         logging.info(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
-        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database: {e}")
+        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} "
+                      f"in the database: {e}")
 
 
 def get_last_commit_url(github_repo, path):
@@ -75,14 +76,16 @@ def get_last_commit_url(github_repo, path):
         logging.debug(f"COMMIT--------------------------------------- {commit}")
         files_changed = commit.files
         if any(file.filename.endswith('.rst') for file in files_changed):
-            logging.debug(f"COMMIT URL AND DATE---------------------------- {commit.html_url} {commit.commit.author.date}")
+            logging.debug(f"COMMIT URL AND DATE---------------------------- {commit.html_url} "
+                          f"{commit.commit.author.date}")
             return commit.html_url, commit.commit.author.date  # Return the commit URL and its date
     return None, None
 
 
 def get_last_commit(org, conn, cur, doctype, string, table_name):
     logging.info(f"Gathering last commit info for {string}...")
-    exclude_repos = ["docsportal", "doc-exports", "docs_on_docs", ".github", "presentations", "sandbox", "security", "template", "content-delivery-network", "data-admin-service", "resource-template-service"]
+    exclude_repos = ["docsportal", "doc-exports", "docs_on_docs", ".github", "presentations", "sandbox", "security",
+                     "template", "content-delivery-network", "data-admin-service", "resource-template-service"]
     for repo in org.get_repos():
 
         if repo.name in exclude_repos:
@@ -95,23 +98,19 @@ def get_last_commit(org, conn, cur, doctype, string, table_name):
             path = doctype
             last_commit_url, last_commit_date = get_last_commit_url(repo, path)
             if last_commit_url and last_commit_date:
-                # logging.info("*************************************************************************new block of commit")
                 last_commit_url, _ = get_last_commit_url(repo, path)
-                # logging.info(f"last commit url------------------------------------------ {last_commit_url}")
                 formatted_commit_date = last_commit_date.strftime('%Y-%m-%d')
-                # logging.info(f"LAST COMMIT DATE-------------------------------------- {formatted_commit_date}")
                 now = datetime.utcnow()
-                # logging.info(f"NOW---------------------------------------- {now}")
                 duration = now - last_commit_date
                 duration_days = duration.days
-                # logging.info(f"DURATION DAYS______________________________________________ {duration_days}")
                 if doctype == "umn/source":
                     doc_type = "UMN"
                 else:
                     doc_type = "API"
                 service_name = repo.name
                 cur.execute(
-                    f'INSERT INTO {table_name} ("Service Name", "Doc Type", "Last commit at", "Days passed", "Commit URL") VALUES (%s, %s, %s, %s, %s);',
+                    f'INSERT INTO {table_name} ("Service Name", "Doc Type", "Last commit at", "Days passed", '
+                    f'"Commit URL") VALUES (%s, %s, %s, %s, %s);',
                     (service_name, doc_type, formatted_commit_date, duration_days, last_commit_url,))
                 conn.commit()
 
@@ -180,7 +179,8 @@ if __name__ == "__main__":
     except Exception as e:
         logging.info(f"Error has been occurred: {e}")
         main(gh_org_str, commit_table, rtc_table, gh_org_str, github_fallback_token)
-        main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss", github_fallback_token)
+        main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss",
+             github_fallback_token)
         done = True
     if done:
         logging.info("Github operations successfully done!")

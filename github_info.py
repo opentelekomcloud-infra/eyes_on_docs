@@ -54,7 +54,8 @@ def extract_pull_links(cur, table_name):
         pull_links = [row[0] for row in cur.fetchall()]
         return pull_links
     except Exception as e:
-        logging.info(f"Extracting pull links: an error occurred while extracting pull links from {table_name}: {str(e)}")
+        logging.info(f"Extracting pull links: an error occurred while extracting pull links from {table_name}: {str(e)}"
+                     )
 
 
 def get_auto_prs(gh_string, repo_name, access_token, pull_links):
@@ -112,7 +113,8 @@ def update_orphaned_prs(org_str, cur, conn, rows, auto_prs, table_name):
                     (state, merged, pr_id)
                 )
             except Exception as e:
-                logging.info(f"Orphanes: an error occurred while updating orphaned PRs in the {table_name} table: {str(e)}")
+                logging.info(f"Orphanes: an error occurred while updating orphaned PRs in the {table_name} table: "
+                             f"{str(e)}")
 
         else:
             continue

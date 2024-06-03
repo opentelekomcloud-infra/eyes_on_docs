@@ -24,8 +24,11 @@ github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-db_csv = os.getenv("DB_CSV")  # this is main postgres db, where open PRs tables for both public and hybrid clouds are stored
-db_orph = os.getenv("DB_ORPH")  # this is dedicated db for orphans PRs (for both clouds) tables. This is so because grafana dashboards query limitations
+db_csv = os.getenv("DB_CSV")  # this is main postgres db, where open PRs tables for both public and hybrid clouds are
+# stored
+db_orph = os.getenv(
+    "DB_ORPH")  # this is dedicated db for orphans PRs (for both clouds) tables. This is so because grafana dashboards
+# query limitations
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -87,7 +90,8 @@ def create_prs_table(conn_csv, cur_csv, table_name):
         conn_csv.commit()
         logging.info(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
-        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database: {e}")
+        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database:"
+                      f" {e}")
 
 
 def get_repos(org, cur_csv, gitea_token, rtc_table):
@@ -134,7 +138,8 @@ def get_repos(org, cur_csv, gitea_token, rtc_table):
 
 def check_pull_requests_exist(org, repo):
     try:
-        initial_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=all&limit=1&token={gitea_token}")
+        initial_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=all&limit=1&token=\
+                                    {gitea_token}")
         initial_resp.raise_for_status()
         pulls = json.loads(initial_resp.content.decode())
         if not pulls:
@@ -161,7 +166,8 @@ def get_parent_pr(org, repo):
         if path.exists() is False:
             csv_2 = open("proposalbot_prs.csv", "w")
             csv_writer = csv.writer(csv_2)
-            csv_writer.writerow(["Parent PR number", "Service Name", "Auto PR URL", "Auto PR State", "If merged", "Environment"])
+            csv_writer.writerow(["Parent PR number", "Service Name", "Auto PR URL", "Auto PR State", "If merged",
+                                 "Environment"])
         else:
             csv_2 = open("proposalbot_prs.csv", "a")
             csv_writer = csv.writer(csv_2)
@@ -172,7 +178,8 @@ def get_parent_pr(org, repo):
         page = 1
         while True:
             try:
-                repo_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=all&page={page}&limit=1000&token={gitea_token}")
+                repo_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=all&page={page}\
+                                        &limit=1000&token={gitea_token}")
                 repo_resp.raise_for_status()
             except requests.exceptions.RequestException as e:
                 logging.error(f"Error occurred while trying to get repo pull requests: {e}")
@@ -248,7 +255,8 @@ def get_pull_requests(org, repo):
         page = 1
         while True:
             try:
-                pull_requests_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state={state}&page={page}&limit=50&token={gitea_token}")
+                pull_requests_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state={state}&page=\
+                                                {page}&limit=50&token={gitea_token}")
                 pull_requests_resp.raise_for_status()
             except requests.exceptions.RequestException as e:
                 logging.error(f"Child PRs: an error occurred while trying to get pull requests of {repo} repo: {e}")
@@ -403,12 +411,14 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                     try:
                         cur_orph.execute(f"""
                             INSERT INTO public.{opentable}
-                            ("Parent PR Number", "Service Name", "Squad", "Auto PR URL", "Auto PR State", "If merged", "Environment", "Parent PR State", "Parent PR merged")
+                            ("Parent PR Number", "Service Name", "Squad", "Auto PR URL", "Auto PR State", "If merged", 
+                            "Environment", "Parent PR State", "Parent PR merged")
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, tuple(pr1))
                         conn_orph.commit()
                     except Exception as e:
-                        logging.error(f"Open and orphans for ORPHANS and {opentable}: an error occurred while inserting into the orphaned_prs table: {e}")
+                        logging.error(f"Open and orphans for ORPHANS and {opentable}: an error occurred while inserting"
+                                      f" into the orphaned_prs table: {e}")
 
             elif pr1[0] == pr2[0] and pr1[4] == pr2[3] == "open":
                 if pr1 not in open_prs:
@@ -417,12 +427,14 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                     try:
                         cur_csv.execute(f"""
                             INSERT INTO public.{opentable}
-                            ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL", "Auto PR State", "If merged", "Environment", "Parent PR State", "Parent PR merged")
+                            ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL", "Auto PR State", "If merged", 
+                            "Environment", "Parent PR State", "Parent PR merged")
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, tuple(pr1))
                         conn_csv.commit()
                     except Exception as e:
-                        logging.error(f"Open and orphans for OPEN and {opentable}: an error occurred while inserting into the open_prs table: {e}")
+                        logging.error(f"Open and orphans for OPEN and {opentable}: an error occurred while inserting "
+                                      f"into the open_prs table: {e}")
 
 
 def gitea_pr_info(org, parent_pr_name):
@@ -465,10 +477,12 @@ def get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string):
                         parent_pr_num, parent_pr_state, parent_pr_merged = gitea_pr_info(parent_api_name, string)
                         cur_csv.execute(
                             f"""
-                            INSERT INTO {opentable} ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL", "Auto PR State", "If merged", "Environment", "Parent PR State", "Parent PR merged")
+                            INSERT INTO {opentable} ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL", 
+                            "Auto PR State", "If merged", "Environment", "Parent PR State", "Parent PR merged")
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
                             """,
-                            (parent_pr_num, name_service, squad, github_pr_url, auto_pr_state, merged, env, parent_pr_state, parent_pr_merged)
+                            (parent_pr_num, name_service, squad, github_pr_url, auto_pr_state, merged, env,
+                             parent_pr_state, parent_pr_merged)
                         )
                         conn_csv.commit()
     except Exception as e:
@@ -556,12 +570,14 @@ if __name__ == "__main__":
 
     try:
         main(org_string, gh_org_string, rtc_table, open_table, org_string, github_token)
-        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss", github_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss",
+             f"{org_string}-swiss", github_token)
         done = True
     except Exception as e:
         logging.info(f"Error has been occurred: {e}")
         main(org_string, gh_org_string, rtc_table, open_table, org_string, github_fallback_token)
-        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss", f"{org_string}-swiss", github_fallback_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss",
+             f"{org_string}-swiss", github_fallback_token)
         done = True
     if done:
         logging.info("Github operations successfully done!")

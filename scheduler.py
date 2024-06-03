@@ -138,34 +138,41 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         days_passed = int(row[5])
         if days_passed == 344:
             weeks_to_threshold = 3
-            message = f":notifications:    **Outdated Documents Alert**    :notifications:\n\nThis document's last relea" \
-                      f"se date will break the **1-year threshold after {weeks_to_threshold} weeks.**\n"
+            message = f":notifications:    **Outdated Documents Alert**    :notifications:\n\nThis document's last " \
+                      f"release date will break the **1-year threshold after {weeks_to_threshold} weeks.**\n"
         elif days_passed == 351:
             weeks_to_threshold = 2
-            message = f":notifications::notifications:    **Outdated Documents Alert**    :notifications::notifications:" \
-                      f"\n\nThis document's last release date will break the **1-year threshold after {weeks_to_threshold} weeks.**"
+            message = f":notifications::notifications:    **Outdated Documents Alert**    " \
+                      f":notifications::notifications:\n\nThis document's last release date will break the **1-year " \
+                      f"threshold after {weeks_to_threshold} weeks.**"
         elif days_passed == 358:
             weeks_to_threshold = 1
-            message = f":notifications::notifications::notifications:   **Outdated Documents Alert**    :notifications::" \
-                      f"notifications::notifications:\n\nThis document's last release date will break the **1-year threshold after {weeks_to_threshold} weeks.**"
+            message = f":notifications::notifications::notifications:   **Outdated Documents Alert**    " \
+                      f":notifications::notifications::notifications:\n\nThis document's last release date will " \
+                      f"break the **1-year threshold after {weeks_to_threshold} weeks.**"
         elif days_passed >= 365:
-            message = ":exclamation:    **Outdated Documents Alert**    :exclamation:\n\nThis document's release date breaks 1-year threshold!"
+            message = ":exclamation:    **Outdated Documents Alert**    :exclamation:\n\nThis document's release " \
+                      "date breaks 1-year threshold!"
         else:
             return
 
-        message += f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n**Commit" \
-                   f" URL:** {commit_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service.com/d/c67f0f4b-b31c-" \
-                   f"4433-b530-a18896470d49/last-docs-commit?orgId=1&var-squad_commit={encoded_squad}&var-doctype_commit=All&var-duration_commit=ASC&var-zone=last_update_commit\n\n---------------------------------------------------------"
+        message += f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
+                   f"{current_date}\n\n**Commit URL:** {commit_url}\n**Dashboard URL:** " \
+                   f"https://dashboard.tsi-dev.otc-service.com/d/c67f0f4b-b31c-4433-b530-a18896470d49/last-docs-" \
+                   f"commit?orgId=1&var-squad_commit={encoded_squad}&var-doctype_commit=All&var-duration_commit=ASC&" \
+                   f"var-zone=last_update_commit\n\n---------------------------------------------------------"
     elif row["type"] == "issue":
         squad_name = row[3]
         encoded_squad = quote(squad_name)
         service_name = row[2]
         zone = row[-2]
         issue_url = row[5]
-        message = f":point_right:      **Unattended Issues Alert**      :point_left:\n\nYou have an issue which has no assignees for more than 7 days\n\n" \
-                  f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n**Issue URL:" \
-                  f"** {issue_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service.com/d/I-YJAuBVk/open-issues" \
-                  f"-dashboard?orgId=1&var-squad_issues={encoded_squad}&var-env_issues=All&var-sort_duration=DESC&var-zone=open_issues\n\n---------------------------------------------------------"
+        message = f":point_right:      **Unattended Issues Alert**      :point_left:\n\nYou have an issue which has " \
+                  f"no assignees for more than 7 days\n\n**Squad name:** {squad_name}\n**Service name:** " \
+                  f"{service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n**Issue URL** " \
+                  f"{issue_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service.com/d/I-YJAuBVk/open-issues" \
+                  f"-dashboard?orgId=1&var-squad_issues={encoded_squad}&var-env_issues=All&var-sort_duration=DESC&" \
+                  f"var-zone=open_issues\n\n---------------------------------------------------------"
     elif row["type"] == "orphan":
         squad_name = row[3]
         encoded_squad = quote(squad_name)
@@ -173,9 +180,11 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         zone = row[-2]
         zone_table = "open_prs" if zone == "Public" else "open_prs_swiss"
         orphan_url = row[4]
-        message = f":boom:    **Orphaned PRs Alert**   :boom:\n\nYou have orphaned PR here!\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n" \
-                  f"**Orphan URL:** {orphan_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service.com/d/4vLGLDB" \
-                  f"4z/open-prs-dashboard?orgId=1&var-squad_filter={encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n---------------------------------------------------------"
+        message = f":boom:    **Orphaned PRs Alert**   :boom:\n\nYou have orphaned PR here!\n\n**Squad name:** " \
+                  f"{squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n" \
+                  f"**Orphan URL:** {orphan_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service.com" \
+                  f"/d/4vLGLDB4z/open-prs-dashboard?orgId=1&var-squad_filter={encoded_squad}&var-env=Github&" \
+                  f"var-env=Gitea&var-zone={zone_table}\n\n---------------------------------------------------------"
     result = client.send_message({
         "type": "stream",
         "to": stream_name,

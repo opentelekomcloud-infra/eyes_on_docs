@@ -50,7 +50,8 @@ def connect_to_db(db_name):
             password=db_password
         )
     except psycopg2.Error as e:
-        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database {db_name}: {e}")
+        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database {db_name}: "
+                      f"{e}")
         return None
 
 
@@ -74,7 +75,8 @@ def create_open_issues_table(conn, cur, table_name):
         conn.commit()
         logging.info(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
-        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database {db_name}: {e}")
+        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the "
+                      f"database {db_name}: {e}")
 
 
 def get_gitea_issues(gitea_token, gitea_org):
@@ -83,7 +85,8 @@ def get_gitea_issues(gitea_token, gitea_org):
     page = 1
     while True:
         try:
-            repos_resp = requests.get(f"{gitea_api_endpoint}/repos/issues/search?state=open&owner={gitea_org}&page={page}&limit=1000&token={gitea_token}")
+            repos_resp = requests.get(f"{gitea_api_endpoint}/repos/issues/search?state=open&owner={gitea_org}&page=\
+                                    {page}&limit=1000&token={gitea_token}")
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
             logging.error(f"Gitea issues: an error occurred while trying to get Gitea issues for {gitea_org}: {e}")
@@ -117,7 +120,8 @@ def get_github_issues(github_token, repo_names, gh_org):
             repos_resp = requests.get(url, headers=headers, params=params)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logging.error(f"Github issues: an error occurred while trying to get Github issues for repo {repo} in {gh_org} org: {e}")
+            logging.error(f"Github issues: an error occurred while trying to get Github issues for repo {repo} "
+                          f"in {gh_org} org: {e}")
             continue
 
         try:
@@ -157,8 +161,11 @@ def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name)
                 assignees = ', '.join([assignee['login'] for assignee in tea['assignees']])
             else:
                 assignees = ''
-            cur.execute(f'INSERT INTO {table_name} ("Environment", "Service Name", "Squad", "Issue Number", "Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                        (environment, service_name, squad, number, url, user, created_at, duration_days, comments, assignees))
+            cur.execute(f'INSERT INTO {table_name} ("Environment", "Service Name", "Squad", "Issue Number", '
+                        f'"Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") '
+                        f'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                        (environment, service_name, squad, number, url, user, created_at, duration_days, comments,
+                         assignees))
             conn.commit()
     except Exception as e:
         logging.error(f"Issues table: an error occurred while posting data to Postgres: {e}")
@@ -188,8 +195,11 @@ def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name)
             assignees = ', '.join([assignee['login'] for assignee in hub['assignees']])
 
             try:
-                cur.execute(f'INSERT INTO {table_name} ("Environment", "Service Name", "Squad", "Issue Number", "Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                            (environment, service_name, squad, number, url, user, created_at, duration_days, comments, assignees))
+                cur.execute(f'INSERT INTO {table_name} ("Environment", "Service Name", "Squad", "Issue Number", '
+                            f'"Issue URL", "Created by", "Created at", "Duration", "Comments", "Assignees") '
+                            f'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                            (environment, service_name, squad, number, url, user, created_at, duration_days, comments,
+                             assignees))
                 conn.commit()
             except Exception as e:
                 logging.error(f"Issues table: an error occurred while posting data to table {table_name}: {e}")
@@ -262,7 +272,8 @@ if __name__ == '__main__':
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         main(org_string, gh_org_string, open_table, rtc_table, github_fallback_token)
-        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss", github_fallback_token)
+        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss",
+             github_fallback_token)
         done = True
     if done:
         logging.info("Github operations successfully done!")

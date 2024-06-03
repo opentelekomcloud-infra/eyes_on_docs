@@ -219,8 +219,10 @@ def insert_docs_data(item, conn_csv, cur_csv, table_name):
 
 def add_obsolete_services(conn_csv, cur_csv):
     data_to_insert = [
-        {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category": "Other", "service_type": "cdn", "squad": "Other"},
-        {"service_uri": "data-admin-service", "service_title": "Data Admin Service", "service_category": "Other", "service_type": "das", "squad": "Other"}
+        {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category":
+            "Other", "service_type": "cdn", "squad": "Other"},
+        {"service_uri": "data-admin-service", "service_title": "Data Admin Service", "service_category": "Other",
+         "service_type": "das", "squad": "Other"}
     ]
 
     for item in data_to_insert:

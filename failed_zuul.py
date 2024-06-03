@@ -22,7 +22,8 @@ github_token = os.getenv("GITHUB_TOKEN")
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
 db_name = os.getenv(
-    "DB_ZUUL")  # here we're using dedicated postgres db 'zuul' since Failed Zuul PRs panel should be placed on a same dashboard such as Open PRs
+    "DB_ZUUL")  # here we're using dedicated postgres db 'zuul' since Failed Zuul PRs panel should be placed on a same \
+# dashboard such as Open PRs
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -87,7 +88,8 @@ def is_repo_empty(org, repo, gitea_token):
             return True
         return False
     except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 409:  # Conflict error which might mean empty repo, skip this repo to avoid script hangs
+        if e.response.status_code == 409:  # Conflict error which might mean empty repo, skip this repo to avoid script\
+            # hangs
             logging.info(f"Repo {repo} is empty, skipping")
             return True
         logging.error(f"Check repo: an error occurred while trying to get commits for repo {repo}: {e}")
@@ -173,7 +175,8 @@ def get_f_pr_commits(org, repo, f_pr_number, gitea_token):
 
     except requests.exceptions.RequestException as e:
         logging.error(
-            f"Get failed PR commits: an error occurred while trying to get pull requests of {repo} repo for {org} org: {e}")
+            f"Get failed PR commits: an error occurred while trying to get pull requests of {repo} repo for {org} org: \
+            {e}")
 
 
 def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
@@ -182,9 +185,11 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
         if repo != "doc-exports":
             page = 1
             while True:
-                # logging.info(f"Fetching PRs for {repo}, page {page}...")  # Debug print, uncomment in case of script hangs
+                # logging.info(f"Fetching PRs for {repo}, page {page}...")  # Debug print, uncomment in case of script\
+                # hangs
                 repo_resp = session.get(
-                    f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=open&page={page}&limit=1000&token={gitea_token}")
+                    f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=open&page={page}&limit=1000&token=\
+                    {gitea_token}")
                 pull_requests = []
                 if repo_resp.status_code == 200:
                     try:
@@ -213,7 +218,8 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
                                 if all(item is not None for item in [zuul_url, status, created_at, days_passed]):
                                     cur_zuul.execute(f"""
                                         INSERT INTO public.{table_name}
-                                        ("Service Name", "Failed PR Title", "Failed PR URL", "Squad", "Failed PR State", "Zuul URL", "Zuul Check Status", "Days Passed",  "Parent PR Number")
+                                        ("Service Name", "Failed PR Title", "Failed PR URL", "Squad", "Failed PR State"\
+                                        , "Zuul URL", "Zuul Check Status", "Days Passed",  "Parent PR Number")
                                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                                     """,
                                                      (
