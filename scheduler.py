@@ -211,4 +211,3 @@ if __name__ == "__main__":
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
     logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
-
