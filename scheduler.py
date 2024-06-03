@@ -149,7 +149,7 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
             message = f":notifications::notifications::notifications:   **Outdated Documents Alert**    :notifications::" \
                       f"notifications::notifications:\n\nThis document's last release date will break the **1-year threshold after {weeks_to_threshold} weeks.**"
         elif days_passed >= 365:
-            message = f":exclamation:    **Outdated Documents Alert**    :exclamation:\n\nThis document's release date breaks 1-year threshold!"
+            message = ":exclamation:    **Outdated Documents Alert**    :exclamation:\n\nThis document's release date breaks 1-year threshold!"
         else:
             return
 

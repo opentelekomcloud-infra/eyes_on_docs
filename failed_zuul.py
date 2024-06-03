@@ -21,7 +21,8 @@ github_token = os.getenv("GITHUB_TOKEN")
 
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_ZUUL")  # here we're using dedicated postgres db 'zuul' since Failed Zuul PRs panel should be placed on a same dashboard such as Open PRs
+db_name = os.getenv(
+    "DB_ZUUL")  # here we're using dedicated postgres db 'zuul' since Failed Zuul PRs panel should be placed on a same dashboard such as Open PRs
 db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
@@ -47,7 +48,8 @@ def connect_to_db(db_name):
             password=db_password
         )
     except psycopg2.Error as e:
-        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database {db_name}: {e}")
+        logging.error(
+            f"Connecting to Postgres: an error occurred while trying to connect to the database {db_name}: {e}")
         return None
 
 
@@ -71,7 +73,8 @@ def create_prs_table(conn_zuul, cur_zuul, table_name):
         conn_zuul.commit()
         logging.info(f"Table {table_name} has been created successfully")
     except psycopg2.Error as e:
-        logging.error(f"Create table: an error occurred while trying to create a table {table_name} in the database: {e}")
+        logging.error(
+            f"Create table: an error occurred while trying to create a table {table_name} in the database: {e}")
 
 
 def is_repo_empty(org, repo, gitea_token):
@@ -213,11 +216,15 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
                                         ("Service Name", "Failed PR Title", "Failed PR URL", "Squad", "Failed PR State", "Zuul URL", "Zuul Check Status", "Days Passed",  "Parent PR Number")
                                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                                     """,
-                                     (service_name, title, f_pr_url, squad, f_pr_state, zuul_url, status, days_passed, f_par_pr_num)
-                                     )
+                                                     (
+                                                         service_name, title, f_pr_url, squad, f_pr_state, zuul_url,
+                                                         status,
+                                                         days_passed, f_par_pr_num)
+                                                     )
                                     conn_zuul.commit()
                             except Exception as e:
-                                logging.error(f"Failed PRs: an error occurred while inserting into {table_name} table: {e}")
+                                logging.error(
+                                    f"Failed PRs: an error occurred while inserting into {table_name} table: {e}")
                         else:
                             continue
                 elif org == "docs-swiss" and repo_resp.status_code != 200:
@@ -303,4 +310,5 @@ if __name__ == "__main__":
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    logging.info(f"Script failed_zuul.py executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info(
+        f"Script failed_zuul.py executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
