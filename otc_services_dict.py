@@ -167,7 +167,6 @@ def insert_services_data(item, conn_csv, cur_csv, table_name):
     squad = item.get("squad")
     senv = item.get("environment")
 
-
     cur_csv.execute(insert_query, (repository, title, category, squad, senv))
 
     conn_csv.commit()
