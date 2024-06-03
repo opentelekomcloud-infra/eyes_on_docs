@@ -411,7 +411,7 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                     try:
                         cur_orph.execute(f"""
                             INSERT INTO public.{opentable}
-                            ("Parent PR Number", "Service Name", "Squad", "Auto PR URL", "Auto PR State", "If merged", 
+                            ("Parent PR Number", "Service Name", "Squad", "Auto PR URL", "Auto PR State", "If merged",
                             "Environment", "Parent PR State", "Parent PR merged")
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, tuple(pr1))
@@ -427,7 +427,7 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                     try:
                         cur_csv.execute(f"""
                             INSERT INTO public.{opentable}
-                            ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL", "Auto PR State", "If merged", 
+                            ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL", "Auto PR State", "If merged",
                             "Environment", "Parent PR State", "Parent PR merged")
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, tuple(pr1))
@@ -477,7 +477,7 @@ def get_github_open_prs(github_org, conn_csv, cur_csv, opentable, string):
                         parent_pr_num, parent_pr_state, parent_pr_merged = gitea_pr_info(parent_api_name, string)
                         cur_csv.execute(
                             f"""
-                            INSERT INTO {opentable} ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL", 
+                            INSERT INTO {opentable} ("Parent PR Number", "Service Name", "Squad",  "Auto PR URL",
                             "Auto PR State", "If merged", "Environment", "Parent PR State", "Parent PR merged")
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
                             """,
