@@ -91,12 +91,14 @@ def check_open_issues(conn, squad_name, stream_name, topic_name):
         # here each query marked with zone marker (Public or Hybrid) for bring it into message
         if table == "open_issues":
             logging.info(f"Checking {table} for {squad_name}")
-            query = f"""SELECT *, 'Public' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND "Environment" = 'Github' AND "Assignees" = '' AND "Duration" > '7' ;"""
+            query = f"""SELECT *, 'Public' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND
+             "Environment" = 'Github' AND "Assignees" = '' AND "Duration" > '7' ;"""
             cur.execute(query, (squad_name,))
             results = cur.fetchall()
         elif table == "open_issues_swiss":
             logging.info(f"Checking {table} for {squad_name}")
-            query = f"""SELECT *, 'Hybrid' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND "Environment" = 'Github' AND "Assignees" = '' AND "Duration" > '7' ;"""
+            query = f"""SELECT *, 'Hybrid' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND
+             "Environment" = 'Github' AND "Assignees" = '' AND "Duration" > '7' ;"""
             cur.execute(query, (squad_name,))
             results = cur.fetchall()
         if results:
@@ -128,7 +130,8 @@ def check_outdated_docs(conn, squad_name, stream_name, topic_name):
 def send_zulip_notification(row, api_key, stream_name, topic_name):
     message = []
     current_date = datetime.now().strftime("%Y-%m-%d")
-    client = zulip.Client(email="apimon-bot@zulip.tsi-dev.otc-service.com", api_key=api_key, site="https://zulip.tsi-vc.otc-service.com")
+    client = zulip.Client(email="apimon-bot@zulip.tsi-dev.otc-service.com", api_key=api_key,
+                          site="https://zulip.tsi-vc.otc-service.com")
     if row["type"] == "doc":
         squad_name = row[3]
         encoded_squad = quote(squad_name)
