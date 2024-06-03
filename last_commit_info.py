@@ -177,7 +177,8 @@ if __name__ == "__main__":
         main(gh_org_str, commit_table, rtc_table, gh_org_str, github_token)
         main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss", github_token)
         done = True
-    except:
+    except Exception as e:
+        logging.info(f"Error has been occurred: {e}")
         main(gh_org_str, commit_table, rtc_table, gh_org_str, github_fallback_token)
         main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss", github_fallback_token)
         done = True

@@ -130,7 +130,8 @@ if __name__ == "__main__":
     try:
         main(gh_org_str, issues_table, github_token)
         done = True
-    except:
+    except Exception as e:
+        logging.error(f"Error has been occurred: {e}")
         main(gh_org_str, issues_table, github_fallback_token)
         done = True
     if done:

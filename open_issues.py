@@ -259,7 +259,8 @@ if __name__ == '__main__':
         main(org_string, gh_org_string, open_table, rtc_table, github_token)
         main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss", github_token)
         done = True
-    except:
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
         main(org_string, gh_org_string, open_table, rtc_table, github_fallback_token)
         main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss", github_fallback_token)
         done = True

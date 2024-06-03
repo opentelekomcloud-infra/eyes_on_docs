@@ -157,7 +157,8 @@ if __name__ == "__main__":
         main(org_string, gh_org_str, orph_table, github_token)
         main(f"{org_string}-swiss", f"{gh_org_str}-swiss", f"{orph_table}_swiss", github_token)
         done = True
-    except:
+    except Exception as e:
+        logging.info(f"Error has been occurred: {e}")
         main(org_string, gh_org_str, orph_table, github_fallback_token)
         main(f"{org_string}-swiss", f"{gh_org_str}-swiss", f"{orph_table}_swiss", github_fallback_token)
         done = True
