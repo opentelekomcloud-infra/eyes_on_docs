@@ -55,8 +55,7 @@ def connect_to_db(db_name):
             password=db_password
         )
     except psycopg2.Error as e:
-        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database {db_name}: "
-                      f"{e}")
+        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database %s:", e)
         return None
 
 
@@ -78,14 +77,14 @@ def create_open_issues_table(conn, cur, table_name):
             );'''
         )
         conn.commit()
-        logging.info(f"Table {table_name} has been created successfully")
+        logging.info("Table %s has been created successfully", table_name)
     except psycopg2.Error as e:
-        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the "
-                      f"database {db_name}: {e}")
+        logging.error("Tables creating: an error occurred while trying to create a table %s in the "
+                      "database %s: %s", table_name, db_name, e)
 
 
 def get_gitea_issues(gitea_token, gitea_org):
-    logging.info(f"Gathering Gitea issues for {gitea_org}...")
+    logging.info("Gathering Gitea issues for %s...", gitea_org)
     gitea_issues = []
     page = 1
     while True:
@@ -94,7 +93,7 @@ def get_gitea_issues(gitea_token, gitea_org):
                                     {page}&limit=1000&token={gitea_token}")
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logging.error(f"Gitea issues: an error occurred while trying to get Gitea issues for {gitea_org}: {e}")
+            logging.error("Gitea issues: an error occurred while trying to get Gitea issues for %s: %s", gitea_org, e)
             break
 
         try:
@@ -102,7 +101,7 @@ def get_gitea_issues(gitea_token, gitea_org):
             for issue in issues_dict:
                 gitea_issues.append(issue)
         except json.JSONDecodeError as e:
-            logging.error(f"Gitea issues: an error occurred while trying to decode JSON: {e}")
+            logging.error("Gitea issues: an error occurred while trying to decode JSON: %s", e)
             break
 
         link_header = repos_resp.headers.get("Link")
@@ -125,22 +124,22 @@ def get_github_issues(github_token, repo_names, gh_org):
             repos_resp = requests.get(url, headers=headers, params=params)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logging.error(f"Github issues: an error occurred while trying to get Github issues for repo {repo} "
-                          f"in {gh_org} org: {e}")
+            logging.error("Github issues: an error occurred while trying to get Github issues for repo %s "
+                          "in %s org: %s", repo, gh_org, e)
             continue
 
         try:
             issues_dict = json.loads(repos_resp.content.decode())
             github_issues.extend(issues_dict)
         except json.JSONDecodeError as e:
-            logging.error(f"Github issues: an error occurred while trying to decode JSON: {e}")
+            logging.error("Github issues: an error occurred while trying to decode JSON: %s", e)
             continue
 
     return github_issues
 
 
 def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name):
-    logging.info(f"Posting data to Postgres ({db_name})...")
+    logging.info("Posting data to Postgres (%s)...", db_name)
     try:
         for tea in gitea_issues:
             environment = "Gitea"
@@ -173,7 +172,7 @@ def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name)
                          assignees))
             conn.commit()
     except Exception as e:
-        logging.error(f"Issues table: an error occurred while posting data to Postgres: {e}")
+        logging.error("Issues table: an error occurred while posting data to Postgres: %s", e)
         conn.rollback()
 
     service_pattern = re.compile(rf"(?<={gh_org}/).([^/]+)")
@@ -207,12 +206,12 @@ def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name)
                              assignees))
                 conn.commit()
             except Exception as e:
-                logging.error(f"Issues table: an error occurred while posting data to table {table_name}: {e}")
+                logging.error("Issues table: an error occurred while posting data to table {table_name}: %s", e)
                 conn.rollback()
 
 
 def update_squad_and_title(conn, cur, table_name, rtc):
-    logging.info(f"Updating squads and titles in {table_name}...")
+    logging.info("Updating squads and titles in %s...", table_name)
     try:
         cur.execute(f"SELECT * FROM {table_name};")
         open_issues_rows = cur.fetchall()
@@ -236,7 +235,7 @@ def update_squad_and_title(conn, cur, table_name, rtc):
             conn.commit()
 
     except Exception as e:
-        logging.error(f"Error updating squad and title for table {table_name}: {e}")
+        logging.error("Error updating squad and title for table %s: %s", table_name, e)
         conn.rollback()
 
 
@@ -245,7 +244,7 @@ def main(org, gh_org, table_name, rtc, token):
     g = Github(token)
     github_org = g.get_organization(gh_org)
     repo_names = [repo.name for repo in github_org.get_repos()]
-    logging.info(f"{len(repo_names)} repos have been processed")
+    logging.info("%s repos have been processed", len(repo_names))
 
     gitea_issues = get_gitea_issues(gitea_token, org)
     github_issues = get_github_issues(github_token, repo_names, gh_org)
@@ -275,7 +274,7 @@ if __name__ == '__main__':
         main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{OPEN_TABLE}_swiss", f"{RTC_TABLE}_swiss", github_token)
         DONE = True
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
+        logging.error("An error occurred: %s", e)
         main(ORG_STRING, GH_ORG_STRING, OPEN_TABLE, RTC_TABLE, github_fallback_token)
         main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{OPEN_TABLE}_swiss", f"{RTC_TABLE}_swiss",
              github_fallback_token)
