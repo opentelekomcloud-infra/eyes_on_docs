@@ -172,22 +172,22 @@ def main(gorg, table_name, rtc, gh_str, token):
 
 
 if __name__ == "__main__":
-    gh_org_str = "opentelekomcloud-docs"
-    commit_table = "last_update_commit"
-    rtc_table = "repo_title_category"
+    GH_ORG_STR = "opentelekomcloud-docs"
+    COMMIT_TABLE = "last_update_commit"
+    RTC_TABLE = "repo_title_category"
 
-    done = False
+    DONE = False
     try:
-        main(gh_org_str, commit_table, rtc_table, gh_org_str, github_token)
-        main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss", github_token)
-        done = True
+        main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, github_token)
+        main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss", github_token)
+        DONE = True
     except Exception as e:
         logging.info(f"Error has been occurred: {e}")
-        main(gh_org_str, commit_table, rtc_table, gh_org_str, github_fallback_token)
-        main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss",
+        main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, github_fallback_token)
+        main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss",
              github_fallback_token)
-        done = True
-    if done:
+        DONE = True
+    if DONE:
         logging.info("Github operations successfully done!")
 
     end_time = time.time()
