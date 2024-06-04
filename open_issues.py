@@ -7,10 +7,10 @@ import logging
 import json
 import re
 import os
-import psycopg2
 from datetime import datetime
 from github import Github
 import requests
+import psycopg2
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -45,7 +45,7 @@ def check_env_variables():
 
 
 def connect_to_db(db_name):
-    logging.info(f"Connecting to Postgres {db_name}...")
+    logging.info("Connecting to Postgres %s...", db_name)
     try:
         return psycopg2.connect(
             host=db_host,
