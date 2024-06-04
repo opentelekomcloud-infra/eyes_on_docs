@@ -1,11 +1,16 @@
+"""
+This script provides logic to retrieve info about last date when document was updated
+"""
+
+from datetime import datetime
+import time
+import logging
 import os
 import shutil
 import tempfile
 import psycopg2
 from github import Github
-from datetime import datetime
-import time
-import logging
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -30,7 +35,7 @@ def check_env_variables():
     ]
     for var in required_env_vars:
         if os.getenv(var) is None:
-            raise Exception(f"Missing environment variable: {var}")
+            raise Exception("Missing environment variable: %s", var)
 
 
 def connect_to_db(db_name):
@@ -44,7 +49,7 @@ def connect_to_db(db_name):
             password=db_password
         )
     except psycopg2.Error as e:
-        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
         return None
 
 

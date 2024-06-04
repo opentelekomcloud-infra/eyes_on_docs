@@ -1,11 +1,15 @@
+"""
+This script gathers info regarding PRs, which check jobs in zuul has been failed
+"""
+
+from datetime import datetime
+import time
+import logging
 import os
 import requests
 import json
 import re
 import psycopg2
-from datetime import datetime
-import time
-import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

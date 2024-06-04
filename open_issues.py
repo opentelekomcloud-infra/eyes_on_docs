@@ -1,12 +1,17 @@
+"""
+This script gather info regarding open issues in Gitea and Github
+"""
+
+import requests
+import time
+import logging
 import json
 import re
 import os
 import psycopg2
 from datetime import datetime
 from github import Github
-import requests
-import time
-import logging
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

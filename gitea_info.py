@@ -1,3 +1,9 @@
+"""
+This script gather and process info about dependent PRs, its parents and store it in postgres table
+"""
+
+import time
+import logging
 import os
 import requests
 import json
@@ -6,8 +12,6 @@ import re
 import pathlib
 import psycopg2
 from github import Github
-import time
-import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

@@ -1,10 +1,15 @@
+"""
+This script gather and process info about all services in OTC, both public and hybrid, process it and store in
+service postgres tables, to match repo names, service full names and its squads
+"""
+
+import time
+import logging
 import os
 import requests
 import yaml
 import base64
 import psycopg2
-import time
-import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

@@ -1,9 +1,13 @@
-import os
-import psycopg2
-from github import Github
+"""
+This script gathers info about github issues in infra repos, for ecosystem squad
+"""
+
 import time
 import logging
 from datetime import datetime, timedelta
+import os
+import psycopg2
+from github import Github
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

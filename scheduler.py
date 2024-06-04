@@ -1,11 +1,15 @@
+"""
+This script sends Zulip messages to a corresponding squads via Zulip bot, based on info taken from postgres tables
+"""
+
+from datetime import datetime
+from urllib.parse import quote
 import os
 import psycopg2
 import time
 import logging
 from psycopg2.extras import DictCursor
 import zulip
-from datetime import datetime
-from urllib.parse import quote
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
