@@ -2,12 +2,12 @@
 This script sends Zulip messages to a corresponding squads via Zulip bot, based on info taken from postgres tables
 """
 
+import time
+import logging
 from datetime import datetime
 from urllib.parse import quote
 import os
 import psycopg2
-import time
-import logging
 from psycopg2.extras import DictCursor
 import zulip
 
@@ -51,7 +51,7 @@ def check_env_variables():
 
 
 def connect_to_db(db_name):
-    logging.info(f"Connecting to Postgres ({db_name})...")
+    logging.info("Connecting to Postgres (%s)...", db_name)
     try:
         return psycopg2.connect(
             host=db_host,
@@ -62,7 +62,7 @@ def connect_to_db(db_name):
             cursor_factory=DictCursor
         )
     except psycopg2.Error as e:
-        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
         return None
 
 
@@ -73,12 +73,12 @@ def check_orphans(conn_orph, squad_name, stream_name, topic_name):
     for table in tables:
         # here each query marked with zone marker (Public or Hybrid) for bring it into message
         if table == "open_prs":
-            logging.info(f"Looking for orphaned PRs for {squad_name} in {table}...")
+            logging.info("Looking for orphaned PRs for %s in %s...", squad_name, table)
             query = f"""SELECT *, 'Public' as zone, 'orphan' as type FROM {table} WHERE "Squad" = '{squad_name}';"""
             cur_orph.execute(query, (squad_name,))
             results = cur_orph.fetchall()
         elif table == "open_prs_swiss":
-            logging.info(f"Looking for orphaned PRs for {squad_name} in {table}...")
+            logging.info("Looking for orphaned PRs for %s in %s...", squad_name, table)
             query = f"""SELECT *, 'Hybrid' as zone, 'orphan' as type FROM {table} WHERE "Squad" = '{squad_name}';"""
             cur_orph.execute(query, (squad_name,))
             results = cur_orph.fetchall()
@@ -94,13 +94,13 @@ def check_open_issues(conn, squad_name, stream_name, topic_name):
     for table in tables:
         # here each query marked with zone marker (Public or Hybrid) for bring it into message
         if table == "open_issues":
-            logging.info(f"Checking {table} for {squad_name}")
+            logging.info("Checking %s for %s", table, squad_name)
             query = f"""SELECT *, 'Public' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND
              "Environment" = 'Github' AND "Assignees" = '' AND "Duration" > '7' ;"""
             cur.execute(query, (squad_name,))
             results = cur.fetchall()
         elif table == "open_issues_swiss":
-            logging.info(f"Checking {table} for {squad_name}")
+            logging.info("Checking %s for %s", table, squad_name)
             query = f"""SELECT *, 'Hybrid' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND
              "Environment" = 'Github' AND "Assignees" = '' AND "Duration" > '7' ;"""
             cur.execute(query, (squad_name,))
@@ -117,12 +117,12 @@ def check_outdated_docs(conn, squad_name, stream_name, topic_name):
     for table in tables:
         # here each query marked with zone marker (Public or Hybrid) for bring it into message
         if table == "last_update_commit":
-            logging.info(f"Checking {table} table for {squad_name}...")
+            logging.info("Checking %s table for %s...", table, squad_name)
             query = f"""SELECT *, 'Public' as zone, 'doc' as type FROM {table} WHERE "Squad" = %s;"""
             cur.execute(query, (squad_name,))
             results = cur.fetchall()
         elif table == "last_update_commit_swiss":
-            logging.info(f"Checking {table} table for {squad_name}...")
+            logging.info("Checking %s table for %s...", table, squad_name)
             query = f"""SELECT *, 'Hybrid' as zone, 'doc' as type FROM {table} WHERE "Squad" = %s;"""
             cur.execute(query, (squad_name,))
             results = cur.fetchall()
@@ -200,9 +200,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
     })
 
     if result["result"] == "success":
-        logging.info(f"Notification sent successfully for {row[-1]}")
+        logging.info("Notification sent successfully for %s", row[-1])
     else:
-        logging.error(f"Failed to send notification for {row[-1]}: {result['msg']}")
+        logging.error("Failed to send notification for %s: %s", row[-1], result['msg'])
 
 
 def main():
@@ -226,4 +226,4 @@ if __name__ == "__main__":
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))

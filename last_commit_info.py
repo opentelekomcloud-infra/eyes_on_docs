@@ -39,7 +39,7 @@ def check_env_variables():
 
 
 def connect_to_db(db_name):
-    logging.info(f"Connecting to Postgres ({db_name})...")
+    logging.info("Connecting to Postgres (%s)...", db_name)
     try:
         return psycopg2.connect(
             host=db_host,
@@ -67,28 +67,28 @@ def create_commits_table(conn, cur, table_name):
             );'''
         )
         conn.commit()
-        logging.info(f"Table {table_name} has been created successfully")
+        logging.info("Table %s has been created successfully", table_name)
     except psycopg2.Error as e:
-        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} "
-                      f"in the database: {e}")
+        logging.error("Tables creating: an error occurred while trying to create a table %s in the database: %s",
+                      table_name, e)
 
 
 def get_last_commit_url(github_repo, path):
-    logging.debug(f"{path}")
+    logging.debug("%s", path)
     commits = github_repo.get_commits(path=path)
-    logging.debug(f"GITHUB REPO---------------------------------- {github_repo}")
+    # logging.debug(f"GITHUB REPO---------------------------------- {github_repo}")
     for commit in commits:
-        logging.debug(f"COMMIT--------------------------------------- {commit}")
+        # logging.debug(f"COMMIT--------------------------------------- {commit}")
         files_changed = commit.files
         if any(file.filename.endswith('.rst') for file in files_changed):
-            logging.debug(f"COMMIT URL AND DATE---------------------------- {commit.html_url} "
-                          f"{commit.commit.author.date}")
+            # logging.debug(f"COMMIT URL AND DATE---------------------------- {commit.html_url} "
+            #               f"{commit.commit.author.date}")
             return commit.html_url, commit.commit.author.date  # Return the commit URL and its date
     return None, None
 
 
 def get_last_commit(org, conn, cur, doctype, string, table_name):
-    logging.info(f"Gathering last commit info for {string}...")
+    logging.info("Gathering last commit info for %s...", string)
     exclude_repos = ["docsportal", "doc-exports", "docs_on_docs", ".github", "presentations", "sandbox", "security",
                      "template", "content-delivery-network", "data-admin-service", "resource-template-service"]
     for repo in org.get_repos():
@@ -120,7 +120,7 @@ def get_last_commit(org, conn, cur, doctype, string, table_name):
                 conn.commit()
 
         except Exception as e:
-            logging.error(f"Last commit: an error occurred while processing repo {repo.name}: {str(e)}")
+            logging.error("Last commit: an error occurred while processing repo %s: %s", repo.name, str(e))
 
         finally:
             shutil.rmtree(tmp_dir)
@@ -151,7 +151,7 @@ def update_squad_and_title(conn, cur, table_name, rtc):
             conn.commit()
 
     except Exception as e:
-        logging.error(f"Error updating squad and title: {e}")
+        logging.error("Error updating squad and title: %s", e)
         conn.rollback()
 
 
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss", github_token)
         DONE = True
     except Exception as e:
-        logging.info(f"Error has been occurred: {e}")
+        logging.info("Error has been occurred: %s", e)
         main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, github_fallback_token)
         main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss",
              github_fallback_token)
@@ -193,4 +193,4 @@ if __name__ == "__main__":
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))

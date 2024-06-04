@@ -5,13 +5,13 @@ This script gather and process info about dependent PRs, its parents and store i
 import time
 import logging
 import os
-import requests
 import json
 import csv
 import re
 import pathlib
 import psycopg2
 from github import Github
+import requests
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -19,7 +19,7 @@ start_time = time.time()
 
 logging.info("-------------------------OPEN PRs SCRIPT IS RUNNING-------------------------")
 
-gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
+GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
 session.debug = False
 gitea_token = os.getenv("GITEA_TOKEN")
@@ -109,7 +109,7 @@ def get_repos(org, cur_csv, gitea_token, rtc_table):
 
     while True:
         try:
-            repos_resp = session.get(f"{gitea_api_endpoint}/orgs/{org}/repos?page={page}&limit=50&token={gitea_token}")
+            repos_resp = session.get(f"{GITEA_API_ENDPOINT}/orgs/{org}/repos?page={page}&limit=50&token={gitea_token}")
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
             logging.error(f"Get repos: an error occurred while trying to get repos: {e}")
@@ -139,7 +139,7 @@ def get_repos(org, cur_csv, gitea_token, rtc_table):
 
 def check_pull_requests_exist(org, repo):
     try:
-        initial_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=all&limit=1&token="
+        initial_resp = session.get(f"{GITEA_API_ENDPOINT}/repos/{org}/{repo}/pulls?state=all&limit=1&token="
                                    f"{gitea_token}")
         initial_resp.raise_for_status()
         pulls = json.loads(initial_resp.content.decode())
@@ -179,7 +179,7 @@ def get_parent_pr(org, repo):
         page = 1
         while True:
             try:
-                repo_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=all&page={page}"
+                repo_resp = session.get(f"{GITEA_API_ENDPOINT}/repos/{org}/{repo}/pulls?state=all&page={page}"
                                         f"&limit=1000&token={gitea_token}")
                 repo_resp.raise_for_status()
             except requests.exceptions.RequestException as e:
@@ -256,7 +256,7 @@ def get_pull_requests(org, repo):
         page = 1
         while True:
             try:
-                pull_requests_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state={state}&page="
+                pull_requests_resp = session.get(f"{GITEA_API_ENDPOINT}/repos/{org}/{repo}/pulls?state={state}&page="
                                                  f"{page}&limit=50&token={gitea_token}")
                 pull_requests_resp.raise_for_status()
             except requests.exceptions.RequestException as e:
@@ -442,7 +442,7 @@ def gitea_pr_info(org, parent_pr_name):
     parent_pr_num = None
     parent_pr_state = None
     parent_pr_merged = None
-    pull_request_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{parent_pr_name}?token={gitea_token}")
+    pull_request_resp = session.get(f"{GITEA_API_ENDPOINT}/repos/{org}/{parent_pr_name}?token={gitea_token}")
     if pull_request_resp.status_code == 200:
         parent_info = json.loads(pull_request_resp.content.decode("utf-8"))
         parent_pr_num = parent_info.get("number")
@@ -562,29 +562,29 @@ def main(org, gh_org, rtctable, opentable, string, token):
 
 
 if __name__ == "__main__":
-    rtc_table = "repo_title_category"
-    open_table = "open_prs"
-    org_string = "docs"
-    gh_org_string = "opentelekomcloud-docs"
+    RTC_TABLE = "repo_title_category"
+    OPEN_TABLE = "open_prs"
+    ORG_STRING = "docs"
+    GH_ORG_STRING = "opentelekomcloud-docs"
 
-    done = False
+    DONE = False
 
     try:
-        main(org_string, gh_org_string, rtc_table, open_table, org_string, github_token)
-        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss",
-             f"{org_string}-swiss", github_token)
-        done = True
+        main(ORG_STRING, GH_ORG_STRING, RTC_TABLE, OPEN_TABLE, ORG_STRING, github_token)
+        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{RTC_TABLE}_swiss", f"{OPEN_TABLE}_swiss",
+             f"{ORG_STRING}-swiss", github_token)
+        DONE = True
     except Exception as e:
         logging.info(f"Error has been occurred: {e}")
-        main(org_string, gh_org_string, rtc_table, open_table, org_string, github_fallback_token)
-        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{rtc_table}_swiss", f"{open_table}_swiss",
-             f"{org_string}-swiss", github_fallback_token)
-        done = True
-    if done:
+        main(ORG_STRING, GH_ORG_STRING, RTC_TABLE, OPEN_TABLE, ORG_STRING, github_fallback_token)
+        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{RTC_TABLE}_swiss", f"{OPEN_TABLE}_swiss",
+             f"{ORG_STRING}-swiss", github_fallback_token)
+        DONE = True
+    if DONE:
         logging.info("Github operations successfully done!")
 
     csv_erase(["proposalbot_prs.csv", "doc_exports_prs.csv", "orphaned_prs.csv"])
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))

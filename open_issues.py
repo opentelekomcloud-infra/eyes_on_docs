@@ -2,7 +2,6 @@
 This script gather info regarding open issues in Gitea and Github
 """
 
-import requests
 import time
 import logging
 import json
@@ -11,6 +10,7 @@ import os
 import psycopg2
 from datetime import datetime
 from github import Github
+import requests
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,7 +19,7 @@ start_time = time.time()
 
 logging.error("-------------------------OPEN ISSUES SCRIPT IS RUNNING-------------------------")
 
-gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
+GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
 session.debug = False
 
@@ -90,7 +90,7 @@ def get_gitea_issues(gitea_token, gitea_org):
     page = 1
     while True:
         try:
-            repos_resp = requests.get(f"{gitea_api_endpoint}/repos/issues/search?state=open&owner={gitea_org}&page=\
+            repos_resp = requests.get(f"{GITEA_API_ENDPOINT}/repos/issues/search?state=open&owner={gitea_org}&page=\
                                     {page}&limit=1000&token={gitea_token}")
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
@@ -264,26 +264,26 @@ def main(org, gh_org, table_name, rtc, token):
 
 
 if __name__ == '__main__':
-    org_string = "docs"
-    gh_org_string = "opentelekomcloud-docs"
-    open_table = "open_issues"
-    rtc_table = "repo_title_category"
+    ORG_STRING = "docs"
+    GH_ORG_STRING = "opentelekomcloud-docs"
+    OPEN_TABLE = "open_issues"
+    RTC_TABLE = "repo_title_category"
 
-    done = False
+    DONE = False
     try:
-        main(org_string, gh_org_string, open_table, rtc_table, github_token)
-        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss", github_token)
-        done = True
+        main(ORG_STRING, GH_ORG_STRING, OPEN_TABLE, RTC_TABLE, github_token)
+        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{OPEN_TABLE}_swiss", f"{RTC_TABLE}_swiss", github_token)
+        DONE = True
     except Exception as e:
         logging.error(f"An error occurred: {e}")
-        main(org_string, gh_org_string, open_table, rtc_table, github_fallback_token)
-        main(f"{org_string}-swiss", f"{gh_org_string}-swiss", f"{open_table}_swiss", f"{rtc_table}_swiss",
+        main(ORG_STRING, GH_ORG_STRING, OPEN_TABLE, RTC_TABLE, github_fallback_token)
+        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{OPEN_TABLE}_swiss", f"{RTC_TABLE}_swiss",
              github_fallback_token)
-        done = True
-    if done:
+        DONE = True
+    if DONE:
         logging.info("Github operations successfully done!")
 
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))

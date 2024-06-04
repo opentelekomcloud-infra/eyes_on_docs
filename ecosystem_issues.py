@@ -36,7 +36,7 @@ def check_env_variables():
 
 
 def connect_to_db(db_name):
-    logging.info(f"Connecting to Postgres ({db_name})...")
+    logging.info("Connecting to Postgres (%s)...", db_name)
     try:
         return psycopg2.connect(
             host=db_host,
@@ -46,7 +46,7 @@ def connect_to_db(db_name):
             password=db_password
         )
     except psycopg2.Error as e:
-        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
         return None
 
 
@@ -66,10 +66,10 @@ def create_open_issues_table(conn, cur, table_name):
             );'''
         )
         conn.commit()
-        logging.info(f"Table {table_name} has been created successfully")
+        logging.info("Table %s has been created successfully", table_name)
     except psycopg2.Error as e:
-        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database \
-                        {db_name}: {e}")
+        logging.error("Tables creating: an error occurred while trying to create a table %s in the database \
+                        %s: %s", table_name, db_name, e)
 
 
 def insert_issue_data(conn, cur, table_name, repo, issue):
@@ -94,7 +94,7 @@ def insert_issue_data(conn, cur, table_name, repo, issue):
         )
         conn.commit()
     except psycopg2.Error as e:
-        logging.error(f"Error inserting issue data: {e}")
+        logging.error("Error inserting issue data: %s", e)
         conn.rollback()
 
 
@@ -128,21 +128,21 @@ def main(gorg, table_name, token):
 
 
 if __name__ == "__main__":
-    gh_org_str = "opentelekomcloud"
-    issues_table = "open_issues_eco"
+    GH_ORG_STR = "opentelekomcloud"
+    ISSUES_TABLE = "open_issues_eco"
 
-    done = False
+    DONE = False
     try:
-        main(gh_org_str, issues_table, github_token)
-        done = True
+        main(GH_ORG_STR, ISSUES_TABLE, github_token)
+        DONE = True
     except Exception as e:
-        logging.error(f"Error has been occurred: {e}")
-        main(gh_org_str, issues_table, github_fallback_token)
-        done = True
-    if done:
+        logging.error("Error has been occurred: %s", e)
+        main(GH_ORG_STR, ISSUES_TABLE, github_fallback_token)
+        DONE = True
+    if DONE:
         logging.info("Github operations successfully done!")
 
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))

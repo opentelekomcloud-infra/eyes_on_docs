@@ -34,7 +34,7 @@ db_password = os.getenv("DB_PASSWORD")
 
 
 def connect_to_db(db):
-    logging.info(f"Connecting to Postgres ({db})...")
+    logging.info("Connecting to Postgres (%s)...", db)
     try:
         return psycopg2.connect(
             host=db_host,
@@ -44,12 +44,12 @@ def connect_to_db(db):
             password=db_password
         )
     except psycopg2.Error as e:
-        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
         return None
 
 
 def create_rtc_table(conn_csv, cur_csv, table_name):
-    logging.info(f"Creating new service table {table_name}...")
+    logging.info("Creating new service table %s...", table_name)
     try:
         cur_csv.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
@@ -63,12 +63,12 @@ def create_rtc_table(conn_csv, cur_csv, table_name):
         )
         conn_csv.commit()
     except Exception as e:
-        logging.error(f"RTC: an error occurred while trying to create a table: {e}")
+        logging.error("RTC: an error occurred while trying to create a table: %s", e)
         return
 
 
 def create_doc_table(conn_csv, cur_csv, table_name):
-    logging.info(f"Creating new doc table {table_name}...")
+    logging.info("Creating new doc table %s...", table_name)
     try:
         cur_csv.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
@@ -81,7 +81,7 @@ def create_doc_table(conn_csv, cur_csv, table_name):
         )
         conn_csv.commit()
     except Exception as e:
-        logging.error(f"Doc Table: an error occurred while trying to create a table: {e}")
+        logging.error("Doc Table: an error occurred while trying to create a table: %s", e)
 
 
 def get_pretty_category_names(base_dir, category_dir):
@@ -160,7 +160,7 @@ def get_docs_info(base_dir, doc_dir):
 
 def insert_services_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
-        logging.error(f"Unexpected data type: {type(item)}, value: {item}")
+        logging.error("Unexpected data type: %s, value: %s", type(item), item)
         return
 
     insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Env")
@@ -207,7 +207,7 @@ def update_squad_title(conn, styring_url, table_name):
 
 def insert_docs_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
-        logging.error(f"Unexpected data type: {type(item)}, value: {item}")
+        logging.error("Unexpected data type: %s, value: %s", type(item), item)
         return
 
     insert_query = f"""INSERT INTO {table_name} ("Service Type", "Title", "Document Type", "Link")
@@ -235,11 +235,11 @@ def add_obsolete_services(conn_csv, cur_csv):
 
 
 def copy_rtc(cur_csv, cursors, conns, rtctable):
-    logging.info(f"Start copy {rtctable} to other DBs...")
+    logging.info("Start copy %s to other DBs...", rtctable)
     try:
         cur_csv.execute(f"SELECT * FROM {rtctable};")
     except psycopg2.Error as e:
-        logging.error(f"Error fetching data from {rtctable}: {e}")
+        logging.error("Error fetching data from %s: %s", rtctable, e)
         return
 
     rows = cur_csv.fetchall()
@@ -257,7 +257,7 @@ def copy_rtc(cur_csv, cursors, conns, rtctable):
                 cur.execute(f"INSERT INTO {rtctable} VALUES ({placeholders});", row)
             conn.commit()
         except psycopg2.Error as e:
-            logging.error(f"Error copying data to {rtctable} in target DB: {e}")
+            logging.error("Error copying data to %s in target DB: %s", rtctable, e)
             conn.rollback()
 
 
@@ -305,15 +305,15 @@ def main(base_dir, rtctable, doctable, styring_path):
 
 
 if __name__ == "__main__":
-    base_dir_swiss = "/repos/infra/otc-metadata-swiss/contents/"
-    base_dir_regular = "/repos/infra/otc-metadata/contents/"
-    styring_url_regular = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/data.yaml?token="
-    styring_url_swiss = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-swiss/data.yaml?token="
-    base_rtc_table = "repo_title_category"
-    base_doc_table = "doc_types"
+    BASE_DIR_SWISS = "/repos/infra/otc-metadata-swiss/contents/"
+    BASE_DIR_REGULAR = "/repos/infra/otc-metadata/contents/"
+    STYRING_URL_REGULAR = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/data.yaml?token="
+    STYRING_URL_SWISS = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-swiss/data.yaml?token="
+    BASE_RTC_TABLE = "repo_title_category"
+    BASE_DOC_TABLE = "doc_types"
 
-    main(base_dir_regular, base_rtc_table, base_doc_table, styring_url_regular)
-    main(base_dir_swiss, f"{base_rtc_table}_swiss", f"{base_doc_table}_swiss", styring_url_swiss)
+    main(BASE_DIR_REGULAR, BASE_RTC_TABLE, BASE_DOC_TABLE, STYRING_URL_REGULAR)
+    main(BASE_DIR_SWISS, f"{BASE_RTC_TABLE}_swiss", f"{BASE_DOC_TABLE}_swiss", STYRING_URL_SWISS)
     conn_csv = connect_to_db(db_csv)
     cur_csv = conn_csv.cursor()
     add_obsolete_services(conn_csv, cur_csv)
@@ -323,4 +323,4 @@ if __name__ == "__main__":
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
