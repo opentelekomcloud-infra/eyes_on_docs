@@ -59,7 +59,8 @@ def extract_pull_links(cur, table_name):
         pull_links = [row[0] for row in cur.fetchall()]
         return pull_links
     except Exception as e:
-        logging.info("Extracting pull links: an error occurred while extracting pull links from %s: %s", table_name, str(e))
+        logging.info("Extracting pull links: an error occurred while extracting pull links from %s: %s",
+                     table_name, str(e))
         return []
 
 

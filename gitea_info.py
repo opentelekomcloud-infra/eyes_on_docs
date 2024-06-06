@@ -174,8 +174,8 @@ def get_parent_pr(org, repo):
                     page = 1
                     while True:
                         try:
-                            repo_resp = session.get(f"{GITEA_API_ENDPOINT}/repos/{org}/{repo}/pulls?state=all&page={page}"
-                                                    f"&limit=1000&token={gitea_token}")
+                            repo_resp = session.get(f"{GITEA_API_ENDPOINT}/repos/{org}/{repo}/pulls?state=all&page="
+                                                    f"{page}&limit=1000&token={gitea_token}")
                             repo_resp.raise_for_status()
                         except requests.exceptions.RequestException as e:
                             logging.error("Error occurred while trying to get repo pull requests: %s", e)
