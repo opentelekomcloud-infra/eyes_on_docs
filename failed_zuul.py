@@ -19,7 +19,6 @@ logging.info("-------------------------FAILED PRS SCRIPT IS RUNNING-------------
 
 GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
-session.debug = False
 gitea_token = os.getenv("GITEA_TOKEN")
 github_token = os.getenv("GITHUB_TOKEN")
 
