@@ -2,16 +2,16 @@
 This script gather and process info about dependent PRs, its parents and store it in postgres table
 """
 
-import time
+import csv
+import json
 import logging
 import os
-import json
-import csv
-import re
 import pathlib
+import re
+import time
 import psycopg2
-from github import Github
 import requests
+from github import Github
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

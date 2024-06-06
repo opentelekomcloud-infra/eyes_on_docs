@@ -2,12 +2,12 @@
 This script retrieves info about parent PRs on Github
 """
 
-import time
 import logging
 import os
-import requests
 import re
+import time
 import psycopg2
+import requests
 from github import Github
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

@@ -3,11 +3,11 @@ This script provides logic to retrieve info about last date when document was up
 """
 
 from datetime import datetime
-import time
 import logging
 import os
 import shutil
 import tempfile
+import time
 import psycopg2
 from github import Github
 

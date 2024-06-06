@@ -2,10 +2,10 @@
 This script gathers info about github issues in infra repos, for ecosystem squad
 """
 
-import time
 import logging
-from datetime import datetime, timedelta
+import time
 import os
+from datetime import datetime, timedelta
 import psycopg2
 from github import Github
 
