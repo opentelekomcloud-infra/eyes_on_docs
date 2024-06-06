@@ -128,8 +128,7 @@ def get_repos(org, gitea_token):
         link_header = repos_resp.headers.get("Link")
         if link_header is None or "rel=\"next\"" not in link_header:
             break
-        else:
-            page += 1
+        page += 1
 
     logging.info("%s repos have been processed", len(repos))
 
@@ -182,6 +181,8 @@ def get_f_pr_commits(org, repo, f_pr_number, gitea_token):
             "Get failed PR commits: an error occurred while trying to get pull requests of %s repo for %s org: \
             %s", repo, org, e)
 
+    return None, None, None, None
+
 
 def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
     # logging.info(f"Processing {repo}...")  # Debug print, uncomment in case of script hangs
@@ -208,16 +209,15 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
                         if body.startswith("This is an automatically created Pull Request"):
                             if pull_req["merged"] is True:
                                 continue
-                            else:
-                                f_par_pr_num = extract_number_from_body(body)
-                                f_pr_number = pull_req["number"]
-                                service_name = repo
-                                squad = ""
-                                title = pull_req["title"]
-                                f_pr_url = pull_req["url"]
-                                f_pr_state = pull_req["state"]
-                                zuul_url, status, created_at, days_passed = get_f_pr_commits(org, repo, f_pr_number,
-                                                                                             gitea_token)
+                            f_par_pr_num = extract_number_from_body(body)
+                            f_pr_number = pull_req["number"]
+                            service_name = repo
+                            squad = ""
+                            title = pull_req["title"]
+                            f_pr_url = pull_req["url"]
+                            f_pr_state = pull_req["state"]
+                            zuul_url, status, created_at, days_passed = get_f_pr_commits(org, repo, f_pr_number,
+                                                                                         gitea_token)
                             try:
                                 if all(item is not None for item in [zuul_url, status, created_at, days_passed]):
                                     cur_zuul.execute(f"""
@@ -303,19 +303,19 @@ def main(org, table_name, rtc):
     for repo in repos:
         get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name)
 
-    update_squad_and_title(conn_zuul, cur_zuul, rtc, failed_table)
+    update_squad_and_title(conn_zuul, cur_zuul, rtc, FAILED_TABLE)
 
     cur_zuul.close()
     conn_zuul.close()
 
 
 if __name__ == "__main__":
-    org_string = "docs"
-    failed_table = "open_prs"
-    rtc_table = "repo_title_category"
+    ORG_STRING = "docs"
+    FAILED_TABLE = "open_prs"
+    RTC_TABLE = "repo_title_category"
 
-    main(org_string, failed_table, rtc_table)
-    main(f"{org_string}-swiss", f"{failed_table}_swiss", f"{rtc_table}_swiss")
+    main(ORG_STRING, FAILED_TABLE, RTC_TABLE)
+    main(f"{ORG_STRING}-swiss", f"{FAILED_TABLE}_swiss", f"{RTC_TABLE}_swiss")
 
     end_time = time.time()
     execution_time = end_time - start_time

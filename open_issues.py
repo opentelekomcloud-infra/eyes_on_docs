@@ -89,7 +89,7 @@ def get_gitea_issues(gitea_token, gitea_org):
     while True:
         try:
             repos_resp = requests.get(f"{GITEA_API_ENDPOINT}/repos/issues/search?state=open&owner={gitea_org}&page=\
-                                    {page}&limit=1000&token={gitea_token}")
+                                    {page}&limit=1000&token={gitea_token}", timeout=10)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
             logging.error("Gitea issues: an error occurred while trying to get Gitea issues for %s: %s", gitea_org, e)
@@ -106,21 +106,20 @@ def get_gitea_issues(gitea_token, gitea_org):
         link_header = repos_resp.headers.get("Link")
         if link_header is None or "rel=\"next\"" not in link_header:
             break
-        else:
-            page += 1
+        page += 1
 
     return gitea_issues
 
 
 def get_github_issues(github_token, repo_names, gh_org):
-    logging.info(f"Gathering Github issues for {gh_org}...")
+    logging.info("Gathering Github issues for %s..." % gh_org)
     headers = {"Authorization": f"Bearer {github_token}"}
     github_issues = []
     for repo in repo_names:
         try:
             url = f"https://api.github.com/repos/{gh_org}/{repo}/issues"
             params = {"state": "open", "filter": "all"}
-            repos_resp = requests.get(url, headers=headers, params=params)
+            repos_resp = requests.get(url, timeout=10, headers=headers, params=params)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
             logging.error("Github issues: an error occurred while trying to get Github issues for repo %s "
@@ -148,8 +147,7 @@ def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name)
             url = tea['html_url']
             if "pulls" in url:
                 continue
-            else:
-                url = tea['html_url']
+            url = tea['html_url']
             user = tea['user']['full_name']
             if user == "":
                 user = "proposalbot"

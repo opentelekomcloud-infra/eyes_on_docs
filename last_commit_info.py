@@ -35,7 +35,7 @@ def check_env_variables():
     ]
     for var in required_env_vars:
         if os.getenv(var) is None:
-            raise Exception("Missing environment variable: %s", var)
+            raise Exception("Missing environment variable: %s" % var)
 
 
 def connect_to_db(db_name):

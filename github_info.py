@@ -59,9 +59,8 @@ def extract_pull_links(cur, table_name):
         pull_links = [row[0] for row in cur.fetchall()]
         return pull_links
     except Exception as e:
-        logging.info("Extracting pull links: an error occurred while extracting pull links from %s: %s", table_name,
-                     str(e)
-                     )
+        logging.info("Extracting pull links: an error occurred while extracting pull links from %s: %s", table_name, str(e))
+        return []
 
 
 def get_auto_prs(gh_string, repo_name, access_token, pull_links):
@@ -70,7 +69,7 @@ def get_auto_prs(gh_string, repo_name, access_token, pull_links):
     url = f"https://api.github.com/repos/{gh_string}/{repo_name}/pulls"
     params = {"state": "all"}
     try:
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, timeout=10, headers=headers, params=params)
         response.raise_for_status()
         for pr in response.json():
             body = pr.get("body")

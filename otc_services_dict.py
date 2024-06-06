@@ -86,7 +86,7 @@ def create_doc_table(conn_csv, cur_csv, table_name):
 
 
 def get_pretty_category_names(base_dir, category_dir):
-    response = requests.get(f"{BASE_URL}{category_dir}", headers=headers)
+    response = requests.get(f"{BASE_URL}{category_dir}", timeout=10, headers=headers)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -94,7 +94,7 @@ def get_pretty_category_names(base_dir, category_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", headers=headers)
+            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10, headers=headers)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -109,7 +109,7 @@ def get_pretty_category_names(base_dir, category_dir):
 def get_service_categories(base_dir, category_dir, services_dir):
     pretty_names = get_pretty_category_names(base_dir, category_dir)
 
-    response = requests.get(f"{BASE_URL}{services_dir}", headers=headers)
+    response = requests.get(f"{BASE_URL}{services_dir}", timeout=10, headers=headers)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -117,7 +117,7 @@ def get_service_categories(base_dir, category_dir, services_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", headers=headers)
+            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10, headers=headers)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -139,7 +139,7 @@ def get_service_categories(base_dir, category_dir, services_dir):
 
 
 def get_docs_info(base_dir, doc_dir):
-    response = requests.get(f"{BASE_URL}{doc_dir}", headers=headers)
+    response = requests.get(f"{BASE_URL}{doc_dir}", timeout=10, headers=headers)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -147,7 +147,7 @@ def get_docs_info(base_dir, doc_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", headers=headers)
+            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10, headers=headers)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -179,7 +179,7 @@ def insert_services_data(item, conn_csv, cur_csv, table_name):
 
 
 def get_squad_description(styring_url):
-    response = requests.get(styring_url, headers=headers)
+    response = requests.get(styring_url, timeout=10, headers=headers)
     response.raise_for_status()
 
     file_content_base64 = response.json()['content']

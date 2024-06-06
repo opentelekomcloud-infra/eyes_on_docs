@@ -50,7 +50,7 @@ def csv_erase(filenames):
             file_path = pathlib.Path(filename)
             if file_path.exists():
                 file_path.unlink()
-                logging.info(f"CSV {filename} has been deleted")
+                logging.info("CSV %s has been deleted", filename)
             else:
                 continue
     except Exception as e:
@@ -89,7 +89,7 @@ def create_prs_table(conn_csv, cur_csv, table_name):
             );'''
         )
         conn_csv.commit()
-        logging.info(f"Table {table_name} has been created successfully")
+        logging.info("Table %s has been created successfully", table_name)
     except psycopg2.Error as e:
         logging.error("Tables creating: an error occurred while trying to create a table %s in the database: %s",
                       table_name, e)
@@ -124,14 +124,12 @@ def get_repos(org, cur_csv, gitea_token, rtc_table):
         for repo in repos_dict:
             if repo["archived"] or repo["name"] in exclude_repos:
                 continue
-            else:
-                repos.append(repo["name"])
+            repos.append(repo["name"])
 
         link_header = repos_resp.headers.get("Link")
         if link_header is None or "rel=\"next\"" not in link_header:
             break
-        else:
-            page += 1
+        page += 1
 
     logging.info("%s repos have been processed", len(repos))
     return repos
@@ -151,9 +149,8 @@ def check_pull_requests_exist(org, repo):
         if e.response.status_code == 404:
             logging.info("No repository or pull requests found in %s (404 error). Skipping.", repo)
             return False
-        else:
-            logging.error("Error checking pull requests in %s: %s", repo, e)
-            return False
+        logging.error("Error checking pull requests in %s: %s", repo, e)
+        return False
     except requests.exceptions.RequestException as e:
         logging.error("Unexpected error when checking pull requests in %s: %s", repo, e)
         return False
@@ -165,60 +162,61 @@ def get_parent_pr(org, repo):
     try:
         path = pathlib.Path("proposalbot_prs.csv")
         if path.exists() is False:
-            csv_2 = open("proposalbot_prs.csv", "w")
-            csv_writer = csv.writer(csv_2)
-            csv_writer.writerow(["Parent PR number", "Service Name", "Auto PR URL", "Auto PR State", "If merged",
-                                 "Environment"])
+            with open("proposalbot_prs.csv", "w", encoding="utf-8") as csv_2:
+                csv_writer = csv.writer(csv_2)
+                csv_writer.writerow(["Parent PR number", "Service Name", "Auto PR URL", "Auto PR State", "If merged",
+                                     "Environment"])
         else:
-            csv_2 = open("proposalbot_prs.csv", "a")
-            csv_writer = csv.writer(csv_2)
+            with open("proposalbot_prs.csv", "a", encoding="utf-8") as csv_2:
+                csv_writer = csv.writer(csv_2)
+
+                if repo not in {'doc-exports', 'dsf'}:
+                    page = 1
+                    while True:
+                        try:
+                            repo_resp = session.get(f"{GITEA_API_ENDPOINT}/repos/{org}/{repo}/pulls?state=all&page={page}"
+                                                    f"&limit=1000&token={gitea_token}")
+                            repo_resp.raise_for_status()
+                        except requests.exceptions.RequestException as e:
+                            logging.error("Error occurred while trying to get repo pull requests: %s", e)
+                            break
+
+                        try:
+                            pull_request = json.loads(repo_resp.content.decode())
+                        except json.JSONDecodeError as e:
+                            logging.error("Error occurred while trying to decode JSON: %s", e)
+                            break
+
+                        dependency_pull_requests = []
+
+                        for pr in pull_request:
+                            dependency_pull_requests.append(pr)
+
+                        for pull_req in dependency_pull_requests:
+                            body = pull_req["body"]
+                            if body.startswith("This is an automatically created Pull Request"):
+                                if pull_req["state"] == "closed" and pull_req["merged"] is False:
+                                    continue
+                                parent_pr = extract_number_from_body(body)
+                                service = repo
+                                auto_url = pull_req["url"]
+                                auto_state = pull_req["state"]
+                                if_merged = pull_req["merged"]
+                                env = "Gitea"
+                                try:
+                                    csv_writer.writerow([parent_pr, service, auto_url, auto_state, if_merged, env])
+                                except csv.Error as e:
+                                    logging.error("Error occurred while trying to write to CSV file: %s", e)
+                                    break
+                        link_header = repo_resp.headers.get("Link")
+                        if link_header is None or "rel=\"next\"" not in link_header:
+                            break
+                        page += 1
+
     except IOError as e:
         logging.error("Proposalbot_prs.csv: an error occurred while trying to open or write to CSV file: %s", e)
         return
-    if repo != "doc-exports" and repo != "dsf":
-        page = 1
-        while True:
-            try:
-                repo_resp = session.get(f"{GITEA_API_ENDPOINT}/repos/{org}/{repo}/pulls?state=all&page={page}"
-                                        f"&limit=1000&token={gitea_token}")
-                repo_resp.raise_for_status()
-            except requests.exceptions.RequestException as e:
-                logging.error("Error occurred while trying to get repo pull requests: %s", e)
-                break
 
-            try:
-                pull_request = json.loads(repo_resp.content.decode())
-            except json.JSONDecodeError as e:
-                logging.error("Error occurred while trying to decode JSON: %s", e)
-                break
-
-            dependency_pull_requests = []
-
-            for pr in pull_request:
-                dependency_pull_requests.append(pr)
-
-            for pull_req in dependency_pull_requests:
-                body = pull_req["body"]
-                if body.startswith("This is an automatically created Pull Request"):
-                    if pull_req["state"] == "closed" and pull_req["merged"] is False:
-                        continue
-                    else:
-                        parent_pr = extract_number_from_body(body)
-                        service = repo
-                        auto_url = pull_req["url"]
-                        auto_state = pull_req["state"]
-                        if_merged = pull_req["merged"]
-                        env = "Gitea"
-                        try:
-                            csv_writer.writerow([parent_pr, service, auto_url, auto_state, if_merged, env])
-                        except csv.Error as e:
-                            logging.error("Error occurred while trying to write to CSV file: %s", e)
-                            break
-            link_header = repo_resp.headers.get("Link")
-            if link_header is None or "rel=\"next\"" not in link_header:
-                break
-            else:
-                page += 1
     try:
         csv_2.close()
 
@@ -245,7 +243,7 @@ def get_pull_requests(org, repo):
     states = ["open", "closed"]
     pull_requests = []
     try:
-        csv_file = open("doc_exports_prs.csv", "a", newline="")
+        csv_file = open("doc_exports_prs.csv", "a", newline="", encoding="utf-8")
         csv_writer = csv.writer(csv_file)
         csv_writer.writerow(["Parent PR index", "Parent PR title", "Parent PR URL", "Parent PR state", "If merged"])
     except IOError as e:
@@ -285,8 +283,7 @@ def get_pull_requests(org, repo):
             link_header = pull_requests_resp.headers.get("Link")
             if link_header is None or "rel=\"next\"" not in link_header:
                 break
-            else:
-                page += 1
+            page += 1
     try:
         csv_file.close()
     except IOError as e:
@@ -314,12 +311,12 @@ def update_service_titles(cur_csv, rtctable):
         return
 
     try:
-        with open("proposalbot_prs.csv", "r", newline="") as file:
+        with open("proposalbot_prs.csv", "r", newline="", encoding="utf-8") as file:
             reader = csv.reader(file)
             rows = list(reader)
             header = rows.pop(0)
-            for i, row in enumerate(rows):
-                for (repo_id, repo, title, category, squad, stype) in repo_title_category:
+            for row in rows:
+                for repo, title in [(r[1], r[2]) for r in repo_title_category]:
                     if repo == row[1]:
                         title_index = header.index("Service Name")
                         row[title_index] = title
@@ -331,7 +328,7 @@ def update_service_titles(cur_csv, rtctable):
         return
 
     try:
-        with open("proposalbot_prs.csv", "w", newline="") as file:
+        with open("proposalbot_prs.csv", "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(header)
             writer.writerows(rows)
@@ -352,14 +349,14 @@ def add_squad_column(cur_csv, rtctable):
         return
 
     try:
-        with open("proposalbot_prs.csv", "r", newline="") as f:
+        with open("proposalbot_prs.csv", "r", newline="", encoding="utf-8") as f:
             reader = csv.reader(f)
             rows = list(reader)
             header = rows.pop(0)
             header.insert(2, "Squad")
             for row in rows:
                 name_service = row[1]
-                for (repo_id, repo, title, category, squad, stype) in repo_title_category:
+                for repo, title, squad in [(r[1], r[2], r[4]) for r in repo_title_category]:
                     if title == name_service:
                         row.insert(2, squad)
     except IOError as e:
@@ -370,12 +367,12 @@ def add_squad_column(cur_csv, rtctable):
         return
 
     try:
-        with open("proposalbot_prs.csv", "w", newline="") as f:
+        with open("proposalbot_prs.csv", "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(header)
             writer.writerows(rows)
     except IOError as e:
-        logging.info("Squad column: an error occurred while writing to the file: %s", e)
+        logging.error("Squad column: an error occurred while writing to the file: %s", e)
         return
     except Exception as e:
         logging.error("Squad column: an unexpected error occurred: %s", e)
@@ -388,12 +385,12 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
         doc_exports_prs = []
         proposalbot_prs = []
 
-        with open("proposalbot_prs.csv", "r") as f:
+        with open("proposalbot_prs.csv", "r", encoding="utf-8") as f:
             reader = csv.reader(f)
             for row in reader:
                 proposalbot_prs.append(row)
 
-        with open("doc_exports_prs.csv", "r") as f:
+        with open("doc_exports_prs.csv", "r", encoding="utf-8") as f:
             reader = csv.reader(f)
             for row in reader:
                 doc_exports_prs.append(row)
@@ -576,7 +573,7 @@ if __name__ == "__main__":
              f"{ORG_STRING}-swiss", github_token)
         DONE = True
     except Exception as e:
-        logging.info(f"Error has been occurred: {e}")
+        logging.info("Error has been occurred: %s", e)
         main(ORG_STRING, GH_ORG_STRING, RTC_TABLE, OPEN_TABLE, ORG_STRING, github_fallback_token)
         main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{RTC_TABLE}_swiss", f"{OPEN_TABLE}_swiss",
              f"{ORG_STRING}-swiss", github_fallback_token)
