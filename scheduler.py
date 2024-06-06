@@ -30,14 +30,10 @@ api_key = os.getenv("OTC_BOT_API")
 
 # Zulip stream and topic mapping for each squad
 squad_streams = {
-    # "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
-    # "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
-    # "Compute Squad": {"stream": "compute", "topic": "hc_alerts topic"},
-    # "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"}
-    "Database Squad": {"stream": "4grafana", "topic": "testing"},
-    "Big Data and AI Squad": {"stream": "grafana", "topic": "testing"},
-    "Orchestration Squad": {"stream": "4grafana", "topic": "testing"},
-    "Compute Squad": {"stream": "grafana", "topic": "testing"}
+    "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
+    "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
+    "Compute Squad": {"stream": "compute", "topic": "hc_alerts topic"},
+    "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"}
 }
 
 
