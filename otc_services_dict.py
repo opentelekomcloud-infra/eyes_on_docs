@@ -7,10 +7,10 @@ import base64
 import logging
 import os
 import time
+
 import psycopg2
 import requests
 import yaml
-
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

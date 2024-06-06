@@ -8,9 +8,9 @@ import os
 import re
 import time
 from datetime import datetime
+
 import psycopg2
 import requests
-
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

@@ -2,15 +2,15 @@
 This script provides logic to retrieve info about last date when document was updated
 """
 
-from datetime import datetime
 import logging
 import os
 import shutil
 import tempfile
 import time
+from datetime import datetime
+
 import psycopg2
 from github import Github
-
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

@@ -7,6 +7,7 @@ import os
 import time
 from datetime import datetime
 from urllib.parse import quote
+
 import psycopg2
 import zulip
 from psycopg2.extras import DictCursor

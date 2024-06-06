@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import time
+
 import psycopg2
 import requests
 from github import Github
