@@ -245,7 +245,7 @@ def parent_pr_changes_check(cur, conn, org, changes_tab):
 
         body = parent_pr["body"]
         if body.startswith("This is an automatically created Pull Request"):
-            match_repo = re.search(r"(?<=\/).+(?=\#)", str(body))
+            match_repo = re.search(r"(?<=/).+(?=#)", str(body))
             repo_name = match_repo.group(0)
             parent_pr_number = extract_number_from_body(body)
             parent_reviews = []
