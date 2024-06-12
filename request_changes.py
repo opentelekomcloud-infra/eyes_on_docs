@@ -16,7 +16,6 @@ logging.info("-------------------------REQUEST CHANGES SCRIPT IS RUNNING--------
 
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
-session.debug = False
 gitea_token = os.getenv("GITEA_TOKEN")
 
 db_host = os.getenv("DB_HOST")
