@@ -1,10 +1,15 @@
-import os
-import requests
-import re
-import psycopg2
-from github import Github
-import time
+"""
+This script retrieves info about parent PRs on Github
+"""
+
 import logging
+import os
+import re
+import time
+
+import psycopg2
+import requests
+from github import Github
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -43,7 +48,7 @@ def connect_to_db(db_name):
             password=db_password
         )
     except psycopg2.Error as e:
-        logging.info(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        logging.info("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
         return None
 
 
@@ -54,7 +59,9 @@ def extract_pull_links(cur, table_name):
         pull_links = [row[0] for row in cur.fetchall()]
         return pull_links
     except Exception as e:
-        logging.info(f"Extracting pull links: an error occurred while extracting pull links from {table_name}: {str(e)}")
+        logging.info("Extracting pull links: an error occurred while extracting pull links from %s: %s",
+                     table_name, str(e))
+        return []
 
 
 def get_auto_prs(gh_string, repo_name, access_token, pull_links):
@@ -63,19 +70,19 @@ def get_auto_prs(gh_string, repo_name, access_token, pull_links):
     url = f"https://api.github.com/repos/{gh_string}/{repo_name}/pulls"
     params = {"state": "all"}
     try:
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, timeout=10, headers=headers, params=params)
         response.raise_for_status()
         for pr in response.json():
             body = pr.get("body")
             if body and any(link in body for link in pull_links):
                 auto_prs.append(pr)
     except requests.exceptions.RequestException as e:
-        logging.info(f"Get PRs: an error occurred while trying to get pull requests: {e}")
+        logging.info("Get PRs: an error occurred while trying to get pull requests: %s", e)
     return auto_prs
 
 
 def add_github_columns(cur, conn, table_name):
-    logging.info(f"Add info to the Postgres ({table_name})...")
+    logging.info("Add info to the Postgres (%s)...", table_name)
     try:
         cur.execute(
             f'''
@@ -86,11 +93,11 @@ def add_github_columns(cur, conn, table_name):
         )
         conn.commit()
     except requests.exceptions.RequestException as e:
-        logging.info(f"Add new column: an error occurred while trying to addidng info to the {table_name}: {e}")
+        logging.info("Add new column: an error occurred while trying to addidng info to the {table_name}: %s", e)
 
 
 def update_orphaned_prs(org_str, cur, conn, rows, auto_prs, table_name):
-    logging.info(f"Processing orphaned PRs for {org_str}...")
+    logging.info("Processing orphaned PRs for %s...", org_str)
     for row in rows:
         pr_id, pull_link = row
         gitea_repo_name = re.search(rf"/{org_str}/(.+?)/", pull_link).group(1)
@@ -112,7 +119,8 @@ def update_orphaned_prs(org_str, cur, conn, rows, auto_prs, table_name):
                     (state, merged, pr_id)
                 )
             except Exception as e:
-                logging.info(f"Orphanes: an error occurred while updating orphaned PRs in the {table_name} table: {str(e)}")
+                logging.info("Orphanes: an error occurred while updating orphaned PRs in the %s table: %s",
+                             table_name, str(e))
 
         else:
             continue
@@ -148,24 +156,24 @@ def main(org, gorg, table_name, token):
 
 
 if __name__ == "__main__":
-    org_string = "docs"
-    gh_org_str = "opentelekomcloud-docs"
-    orph_table = "open_prs"
+    ORG_STRING = "docs"
+    GH_ORG_STR = "opentelekomcloud-docs"
+    ORPH_TABLE = "open_prs"
 
-    done = False
+    DONE = False
     try:
-        main(org_string, gh_org_str, orph_table, github_token)
-        main(f"{org_string}-swiss", f"{gh_org_str}-swiss", f"{orph_table}_swiss", github_token)
-        done = True
-    except:
-        main(org_string, gh_org_str, orph_table, github_fallback_token)
-        main(f"{org_string}-swiss", f"{gh_org_str}-swiss", f"{orph_table}_swiss", github_fallback_token)
-        done = True
-    if done:
+        main(ORG_STRING, GH_ORG_STR, ORPH_TABLE, github_token)
+        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STR}-swiss", f"{ORPH_TABLE}_swiss", github_token)
+        DONE = True
+    except Exception as e:
+        logging.info(f"Error has been occurred: {e}")
+        main(ORG_STRING, GH_ORG_STR, ORPH_TABLE, github_fallback_token)
+        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STR}-swiss", f"{ORPH_TABLE}_swiss", github_fallback_token)
+        DONE = True
+    if DONE:
         logging.info("Github operations successfully done!")
 
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
-
+    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))

@@ -1,10 +1,16 @@
+"""
+This script gather and process info about all services in OTC, both public and hybrid, process it and store in
+service postgres tables, to match repo names, service full names and its squads
+"""
+
+import base64
+import logging
 import os
+import time
+
+import psycopg2
 import requests
 import yaml
-import base64
-import psycopg2
-import time
-import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -29,7 +35,7 @@ db_password = os.getenv("DB_PASSWORD")
 
 
 def connect_to_db(db):
-    logging.info(f"Connecting to Postgres ({db})...")
+    logging.info("Connecting to Postgres (%s)...", db)
     try:
         return psycopg2.connect(
             host=db_host,
@@ -39,12 +45,12 @@ def connect_to_db(db):
             password=db_password
         )
     except psycopg2.Error as e:
-        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
         return None
 
 
 def create_rtc_table(conn_csv, cur_csv, table_name):
-    logging.info(f"Creating new service table {table_name}...")
+    logging.info("Creating new service table %s...", table_name)
     try:
         cur_csv.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
@@ -58,12 +64,12 @@ def create_rtc_table(conn_csv, cur_csv, table_name):
         )
         conn_csv.commit()
     except Exception as e:
-        logging.error(f"RTC: an error occurred while trying to create a table: {e}")
+        logging.error("RTC: an error occurred while trying to create a table: %s", e)
         return
 
 
 def create_doc_table(conn_csv, cur_csv, table_name):
-    logging.info(f"Creating new doc table {table_name}...")
+    logging.info("Creating new doc table %s...", table_name)
     try:
         cur_csv.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
@@ -76,11 +82,11 @@ def create_doc_table(conn_csv, cur_csv, table_name):
         )
         conn_csv.commit()
     except Exception as e:
-        logging.error(f"Doc Table: an error occurred while trying to create a table: {e}")
+        logging.error("Doc Table: an error occurred while trying to create a table: %s", e)
 
 
 def get_pretty_category_names(base_dir, category_dir):
-    response = requests.get(f"{BASE_URL}{category_dir}", headers=headers)
+    response = requests.get(f"{BASE_URL}{category_dir}", timeout=10, headers=headers)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -88,7 +94,7 @@ def get_pretty_category_names(base_dir, category_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", headers=headers)
+            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10, headers=headers)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -103,7 +109,7 @@ def get_pretty_category_names(base_dir, category_dir):
 def get_service_categories(base_dir, category_dir, services_dir):
     pretty_names = get_pretty_category_names(base_dir, category_dir)
 
-    response = requests.get(f"{BASE_URL}{services_dir}", headers=headers)
+    response = requests.get(f"{BASE_URL}{services_dir}", timeout=10, headers=headers)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -111,7 +117,7 @@ def get_service_categories(base_dir, category_dir, services_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", headers=headers)
+            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10, headers=headers)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -133,7 +139,7 @@ def get_service_categories(base_dir, category_dir, services_dir):
 
 
 def get_docs_info(base_dir, doc_dir):
-    response = requests.get(f"{BASE_URL}{doc_dir}", headers=headers)
+    response = requests.get(f"{BASE_URL}{doc_dir}", timeout=10, headers=headers)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -141,7 +147,7 @@ def get_docs_info(base_dir, doc_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", headers=headers)
+            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10, headers=headers)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -155,7 +161,7 @@ def get_docs_info(base_dir, doc_dir):
 
 def insert_services_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
-        logging.error(f"Unexpected data type: {type(item)}, value: {item}")
+        logging.error("Unexpected data type: %s, value: %s", type(item), item)
         return
 
     insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Env")
@@ -167,14 +173,13 @@ def insert_services_data(item, conn_csv, cur_csv, table_name):
     squad = item.get("squad")
     senv = item.get("environment")
 
-
     cur_csv.execute(insert_query, (repository, title, category, squad, senv))
 
     conn_csv.commit()
 
 
 def get_squad_description(styring_url):
-    response = requests.get(styring_url, headers=headers)
+    response = requests.get(styring_url, timeout=10, headers=headers)
     response.raise_for_status()
 
     file_content_base64 = response.json()['content']
@@ -203,7 +208,7 @@ def update_squad_title(conn, styring_url, table_name):
 
 def insert_docs_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
-        logging.error(f"Unexpected data type: {type(item)}, value: {item}")
+        logging.error("Unexpected data type: %s, value: %s", type(item), item)
         return
 
     insert_query = f"""INSERT INTO {table_name} ("Service Type", "Title", "Document Type", "Link")
@@ -220,8 +225,10 @@ def insert_docs_data(item, conn_csv, cur_csv, table_name):
 
 def add_obsolete_services(conn_csv, cur_csv):
     data_to_insert = [
-        {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category": "Other", "service_type": "cdn", "squad": "Other"},
-        {"service_uri": "data-admin-service", "service_title": "Data Admin Service", "service_category": "Other", "service_type": "das", "squad": "Other"}
+        {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category":
+            "Other", "service_type": "cdn", "squad": "Other"},
+        {"service_uri": "data-admin-service", "service_title": "Data Admin Service", "service_category": "Other",
+         "service_type": "das", "squad": "Other"}
     ]
 
     for item in data_to_insert:
@@ -229,11 +236,11 @@ def add_obsolete_services(conn_csv, cur_csv):
 
 
 def copy_rtc(cur_csv, cursors, conns, rtctable):
-    logging.info(f"Start copy {rtctable} to other DBs...")
+    logging.info("Start copy %s to other DBs...", rtctable)
     try:
         cur_csv.execute(f"SELECT * FROM {rtctable};")
     except psycopg2.Error as e:
-        logging.error(f"Error fetching data from {rtctable}: {e}")
+        logging.error("Error fetching data from %s: %s", rtctable, e)
         return
 
     rows = cur_csv.fetchall()
@@ -251,7 +258,7 @@ def copy_rtc(cur_csv, cursors, conns, rtctable):
                 cur.execute(f"INSERT INTO {rtctable} VALUES ({placeholders});", row)
             conn.commit()
         except psycopg2.Error as e:
-            logging.error(f"Error copying data to {rtctable} in target DB: {e}")
+            logging.error("Error copying data to %s in target DB: %s", rtctable, e)
             conn.rollback()
 
 
@@ -299,15 +306,15 @@ def main(base_dir, rtctable, doctable, styring_path):
 
 
 if __name__ == "__main__":
-    base_dir_swiss = "/repos/infra/otc-metadata-swiss/contents/"
-    base_dir_regular = "/repos/infra/otc-metadata/contents/"
-    styring_url_regular = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/data.yaml?token="
-    styring_url_swiss = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-swiss/data.yaml?token="
-    base_rtc_table = "repo_title_category"
-    base_doc_table = "doc_types"
+    BASE_DIR_SWISS = "/repos/infra/otc-metadata-swiss/contents/"
+    BASE_DIR_REGULAR = "/repos/infra/otc-metadata/contents/"
+    STYRING_URL_REGULAR = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/data.yaml?token="
+    STYRING_URL_SWISS = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-swiss/data.yaml?token="
+    BASE_RTC_TABLE = "repo_title_category"
+    BASE_DOC_TABLE = "doc_types"
 
-    main(base_dir_regular, base_rtc_table, base_doc_table, styring_url_regular)
-    main(base_dir_swiss, f"{base_rtc_table}_swiss", f"{base_doc_table}_swiss", styring_url_swiss)
+    main(BASE_DIR_REGULAR, BASE_RTC_TABLE, BASE_DOC_TABLE, STYRING_URL_REGULAR)
+    main(BASE_DIR_SWISS, f"{BASE_RTC_TABLE}_swiss", f"{BASE_DOC_TABLE}_swiss", STYRING_URL_SWISS)
     conn_csv = connect_to_db(db_csv)
     cur_csv = conn_csv.cursor()
     add_obsolete_services(conn_csv, cur_csv)
@@ -317,4 +324,4 @@ if __name__ == "__main__":
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
