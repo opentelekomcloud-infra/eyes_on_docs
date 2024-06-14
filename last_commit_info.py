@@ -1,11 +1,16 @@
+"""
+This script provides logic to retrieve info about last date when document was updated
+"""
+
+import logging
 import os
 import shutil
 import tempfile
+import time
+from datetime import datetime
+
 import psycopg2
 from github import Github
-from datetime import datetime
-import time
-import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -30,11 +35,11 @@ def check_env_variables():
     ]
     for var in required_env_vars:
         if os.getenv(var) is None:
-            raise Exception(f"Missing environment variable: {var}")
+            raise Exception("Missing environment variable: %s" % var)
 
 
 def connect_to_db(db_name):
-    logging.info(f"Connecting to Postgres ({db_name})...")
+    logging.info("Connecting to Postgres (%s)...", db_name)
     try:
         return psycopg2.connect(
             host=db_host,
@@ -44,7 +49,7 @@ def connect_to_db(db_name):
             password=db_password
         )
     except psycopg2.Error as e:
-        logging.error(f"Connecting to Postgres: an error occurred while trying to connect to the database: {e}")
+        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
         return None
 
 
@@ -62,27 +67,30 @@ def create_commits_table(conn, cur, table_name):
             );'''
         )
         conn.commit()
-        logging.info(f"Table {table_name} has been created successfully")
+        logging.info("Table %s has been created successfully", table_name)
     except psycopg2.Error as e:
-        logging.error(f"Tables creating: an error occurred while trying to create a table {table_name} in the database: {e}")
+        logging.error("Tables creating: an error occurred while trying to create a table %s in the database: %s",
+                      table_name, e)
 
 
 def get_last_commit_url(github_repo, path):
-    logging.debug(f"{path}")
+    logging.debug("%s", path)
     commits = github_repo.get_commits(path=path)
-    logging.debug(f"GITHUB REPO---------------------------------- {github_repo}")
+    # logging.debug(f"GITHUB REPO---------------------------------- {github_repo}")
     for commit in commits:
-        logging.debug(f"COMMIT--------------------------------------- {commit}")
+        # logging.debug(f"COMMIT--------------------------------------- {commit}")
         files_changed = commit.files
         if any(file.filename.endswith('.rst') for file in files_changed):
-            logging.debug(f"COMMIT URL AND DATE---------------------------- {commit.html_url} {commit.commit.author.date}")
+            # logging.debug(f"COMMIT URL AND DATE---------------------------- {commit.html_url} "
+            #               f"{commit.commit.author.date}")
             return commit.html_url, commit.commit.author.date  # Return the commit URL and its date
     return None, None
 
 
 def get_last_commit(org, conn, cur, doctype, string, table_name):
-    logging.info(f"Gathering last commit info for {string}...")
-    exclude_repos = ["docsportal", "doc-exports", "docs_on_docs", ".github", "presentations", "sandbox", "security", "template", "content-delivery-network", "data-admin-service", "resource-template-service"]
+    logging.info("Gathering last commit info for %s...", string)
+    exclude_repos = ["docsportal", "doc-exports", "docs_on_docs", ".github", "presentations", "sandbox", "security",
+                     "template", "content-delivery-network", "data-admin-service", "resource-template-service"]
     for repo in org.get_repos():
 
         if repo.name in exclude_repos:
@@ -95,28 +103,24 @@ def get_last_commit(org, conn, cur, doctype, string, table_name):
             path = doctype
             last_commit_url, last_commit_date = get_last_commit_url(repo, path)
             if last_commit_url and last_commit_date:
-                # logging.info("*************************************************************************new block of commit")
                 last_commit_url, _ = get_last_commit_url(repo, path)
-                # logging.info(f"last commit url------------------------------------------ {last_commit_url}")
                 formatted_commit_date = last_commit_date.strftime('%Y-%m-%d')
-                # logging.info(f"LAST COMMIT DATE-------------------------------------- {formatted_commit_date}")
                 now = datetime.utcnow()
-                # logging.info(f"NOW---------------------------------------- {now}")
                 duration = now - last_commit_date
                 duration_days = duration.days
-                # logging.info(f"DURATION DAYS______________________________________________ {duration_days}")
                 if doctype == "umn/source":
                     doc_type = "UMN"
                 else:
                     doc_type = "API"
                 service_name = repo.name
                 cur.execute(
-                    f'INSERT INTO {table_name} ("Service Name", "Doc Type", "Last commit at", "Days passed", "Commit URL") VALUES (%s, %s, %s, %s, %s);',
+                    f'INSERT INTO {table_name} ("Service Name", "Doc Type", "Last commit at", "Days passed", '
+                    f'"Commit URL") VALUES (%s, %s, %s, %s, %s);',
                     (service_name, doc_type, formatted_commit_date, duration_days, last_commit_url,))
                 conn.commit()
 
         except Exception as e:
-            logging.error(f"Last commit: an error occurred while processing repo {repo.name}: {str(e)}")
+            logging.error("Last commit: an error occurred while processing repo %s: %s", repo.name, str(e))
 
         finally:
             shutil.rmtree(tmp_dir)
@@ -147,7 +151,7 @@ def update_squad_and_title(conn, cur, table_name, rtc):
             conn.commit()
 
     except Exception as e:
-        logging.error(f"Error updating squad and title: {e}")
+        logging.error("Error updating squad and title: %s", e)
         conn.rollback()
 
 
@@ -168,23 +172,25 @@ def main(gorg, table_name, rtc, gh_str, token):
 
 
 if __name__ == "__main__":
-    gh_org_str = "opentelekomcloud-docs"
-    commit_table = "last_update_commit"
-    rtc_table = "repo_title_category"
+    GH_ORG_STR = "opentelekomcloud-docs"
+    COMMIT_TABLE = "last_update_commit"
+    RTC_TABLE = "repo_title_category"
 
-    done = False
+    DONE = False
     try:
-        main(gh_org_str, commit_table, rtc_table, gh_org_str, github_token)
-        main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss", github_token)
-        done = True
-    except:
-        main(gh_org_str, commit_table, rtc_table, gh_org_str, github_fallback_token)
-        main(f"{gh_org_str}-swiss", f"{commit_table}_swiss", f"{rtc_table}_swiss", f"{gh_org_str}-swiss", github_fallback_token)
-        done = True
-    if done:
+        main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, github_token)
+        main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss", github_token)
+        DONE = True
+    except Exception as e:
+        logging.info("Error has been occurred: %s", e)
+        main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, github_fallback_token)
+        main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss",
+             github_fallback_token)
+        DONE = True
+    if DONE:
         logging.info("Github operations successfully done!")
 
     end_time = time.time()
     execution_time = end_time - start_time
     minutes, seconds = divmod(execution_time, 60)
-    logging.info(f"Script executed in {int(minutes)} minutes {int(seconds)} seconds! Let's go drink some beer :)")
+    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
