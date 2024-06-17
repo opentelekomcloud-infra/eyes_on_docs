@@ -1,6 +1,6 @@
 Eyes-On-Docs
-=======================
-***********************
+============
+************
 Scripts gathering HC3.0 PRs, issues and docs info from Github and Gitea. Scripts are works both for OTC and Swiss clouds in a one run. Data store in three Postgres databases: **_CSV_** is for a service tables and open PRs, failed Zuul PRs, issues and commits updates, **_ORPH_** is a dedicated DB special for orphan PRs
 
 1) **otc_services_dict.py:** service script gathering metadata for service, its full names, categories and types. Should be run first, since all of the following scripts are relay on it in terms of repo names, service titles and squad names.
@@ -13,8 +13,8 @@ Scripts gathering HC3.0 PRs, issues and docs info from Github and Gitea. Scripts
 Postgres database names, table names, Gitea & Github organization names and access tokens are store in environment variables.
 
 Notification schedule
-----------------
-****************
+---------------------
+*********************
 We have 3 types of alerts: Orphaned PRs Count, Unattended Issues and Outdated Documentation Release Dates.\
 **Orphaned PRs Count** checks comes every day.\
 **Unattended Issues** appears after issues remain unassigned for 7 days.\
