@@ -237,7 +237,7 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
                                     "Failed PRs: an error occurred while inserting into %s table: %s", table_name, e)
                         else:
                             continue
-                elif org == "docs-swiss" and repo_resp.status_code != 200:
+                elif org in ["docs-swiss", "docs"] and repo_resp.status_code != 200:
                     break
                 page += 1
 
