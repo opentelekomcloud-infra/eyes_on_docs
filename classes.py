@@ -9,7 +9,8 @@ import psycopg2
 
 class EnvVariables:
     required_env_vars = [
-        "DB_HOST", "DB_PORT", "DB_CSV", "DB_USER", "DB_ORPH", "DB_ZUUL", "DB_PASSWORD", "GITEA_TOKEN", "GITHUB_TOKEN", "GITHUB_FALLBACK_TOKEN"
+        "DB_HOST", "DB_PORT", "DB_CSV", "DB_USER", "DB_ORPH", "DB_ZUUL", "DB_PASSWORD", "GITEA_TOKEN", "GITHUB_TOKEN",
+        "GITHUB_FALLBACK_TOKEN"
     ]
 
     def __init__(self):

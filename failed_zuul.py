@@ -162,7 +162,7 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
         if repo != "doc-exports":
             page = 1
             while True:
-                # logging.info(f"Fetching PRs for {org} {repo}, page {page}...")  # Debug print, uncomment if script hangs
+                # logging.info(f"Fetching PRs for {org} {repo}, page {page}...")  # Debug, uncomment if script hangs
                 repo_resp = session.get(
                     f"{GITEA_API_ENDPOINT}/repos/{org}/{repo}/pulls?state=open&page={page}&token=\
                     {gitea_token}")
