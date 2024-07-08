@@ -2,8 +2,9 @@
 This script contains data classes for code reusing
 """
 
-import os
 import logging
+import os
+
 import psycopg2
 
 
