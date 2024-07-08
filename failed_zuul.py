@@ -11,7 +11,7 @@ from datetime import datetime
 import psycopg2
 import requests
 
-from classes import EnvVariables, Database
+from classes import Database, EnvVariables
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
