@@ -79,6 +79,7 @@ def get_repos(org, gitea_token):
     logging.info("Gathering repos...")
     repos = []
     page = 1
+    max_pages = 33
     while True:
         try:
             repos_resp = session.get(f"{GITEA_API_ENDPOINT}/orgs/{org}/repos?page={page}&limit=50&token={gitea_token}")
@@ -96,6 +97,9 @@ def get_repos(org, gitea_token):
         for repo in repos_dict:
             if not is_repo_empty(org, repo["name"], gitea_token):  # Skipping empty repos
                 repos.append(repo["name"])
+        if page > max_pages:
+            logging.warning(f"Reached maximum page limit for {org}")
+            break
 
         link_header = repos_resp.headers.get("Link")
         if link_header is None or "rel=\"next\"" not in link_header:
