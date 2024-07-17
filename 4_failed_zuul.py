@@ -4,13 +4,14 @@ This script gathers info regarding PRs, which check jobs in zuul has been failed
 
 import json
 import logging
-import os
 import re
 import time
 from datetime import datetime
 
 import psycopg2
 import requests
+
+from classes import Database, EnvVariables
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -20,42 +21,12 @@ logging.info("-------------------------FAILED PRS SCRIPT IS RUNNING-------------
 
 GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
-gitea_token = os.getenv("GITEA_TOKEN")
-github_token = os.getenv("GITHUB_TOKEN")
 
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT")
-db_name = os.getenv(
-    "DB_ZUUL")  # here we're using dedicated postgres db 'zuul' since Failed Zuul PRs panel should be placed on a same \
-# dashboard such as Open PRs
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
+env_vars = EnvVariables()
+database = Database(env_vars)
 
-
-def check_env_variables():
-    required_env_vars = [
-        "GITHUB_TOKEN", "DB_HOST", "DB_PORT",
-        "DB_NAME", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
-    ]
-    for var in required_env_vars:
-        if os.getenv(var) is None:
-            raise Exception(f"Missing environment variable: {var}")
-
-
-def connect_to_db(db_name):
-    logging.info("Connecting to Postgres (%s)...", db_name)
-    try:
-        return psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            dbname=db_name,
-            user=db_user,
-            password=db_password
-        )
-    except psycopg2.Error as e:
-        logging.error(
-            "Connecting to Postgres: an error occurred while trying to connect to the database %s: %s", db_name, e)
-        return None
+github_token = env_vars.github_token
+github_fallback_token = env_vars.github_fallback_token
 
 
 def create_prs_table(conn_zuul, cur_zuul, table_name):
@@ -77,9 +48,10 @@ def create_prs_table(conn_zuul, cur_zuul, table_name):
         )
         conn_zuul.commit()
         logging.info("Table %s has been created successfully", table_name)
-    except psycopg2.Error as e:
+    except psycopg2.Error:
         logging.error(
-            "Create table: an error occurred while trying to create a table %s in the database: %s", table_name, e)
+            "Create table: an error occurred while trying to create a table %s in the database: %s", table_name,
+            env_vars.db_zuul)
 
 
 def is_repo_empty(org, repo, gitea_token):
@@ -107,6 +79,7 @@ def get_repos(org, gitea_token):
     logging.info("Gathering repos...")
     repos = []
     page = 1
+    max_pages = 33
     while True:
         try:
             repos_resp = session.get(f"{GITEA_API_ENDPOINT}/orgs/{org}/repos?page={page}&limit=50&token={gitea_token}")
@@ -124,6 +97,9 @@ def get_repos(org, gitea_token):
         for repo in repos_dict:
             if not is_repo_empty(org, repo["name"], gitea_token):  # Skipping empty repos
                 repos.append(repo["name"])
+        if page > max_pages:
+            logging.warning(f"Reached maximum page limit for {org}")
+            break
 
         link_header = repos_resp.headers.get("Link")
         if link_header is None or "rel=\"next\"" not in link_header:
@@ -190,10 +166,9 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
         if repo != "doc-exports":
             page = 1
             while True:
-                # logging.info(f"Fetching PRs for {repo}, page {page}...")  # Debug print, uncomment in case of script\
-                # hangs
+                # logging.info(f"Fetching PRs for {org} {repo}, page {page}...")  # Debug, uncomment if script hangs
                 repo_resp = session.get(
-                    f"{GITEA_API_ENDPOINT}/repos/{org}/{repo}/pulls?state=open&page={page}&limit=1000&token=\
+                    f"{GITEA_API_ENDPOINT}/repos/{org}/{repo}/pulls?state=open&page={page}&token=\
                     {gitea_token}")
                 pull_requests = []
                 if repo_resp.status_code == 200:
@@ -240,7 +215,6 @@ def get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name):
                 elif org in ["docs-swiss", "docs"] and repo_resp.status_code != 200:
                     break
                 page += 1
-
     except Exception as e:
         logging.error('Failed PRs: an error occurred:', e)
 
@@ -287,9 +261,8 @@ def update_squad_and_title(conn_zuul, cur_zuul, rtctable, opentable):
 
 
 def main(org, table_name, rtc):
-    check_env_variables()
 
-    conn_zuul = connect_to_db(db_name)
+    conn_zuul = database.connect_to_db(env_vars.db_zuul)
     cur_zuul = conn_zuul.cursor()
 
     cur_zuul.execute(f"DROP TABLE IF EXISTS {table_name}")
@@ -297,11 +270,11 @@ def main(org, table_name, rtc):
 
     create_prs_table(conn_zuul, cur_zuul, table_name)
 
-    repos = get_repos(org, gitea_token)
+    repos = get_repos(org, env_vars.gitea_token)
 
     logging.info("Gathering PRs info...")
     for repo in repos:
-        get_failed_prs(org, repo, gitea_token, conn_zuul, cur_zuul, table_name)
+        get_failed_prs(org, repo, env_vars.gitea_token, conn_zuul, cur_zuul, table_name)
 
     update_squad_and_title(conn_zuul, cur_zuul, rtc, FAILED_TABLE)
 

@@ -5,7 +5,6 @@ This script gather and process info about dependent PRs, its parents and store i
 import csv
 import json
 import logging
-import os
 import pathlib
 import re
 import time
@@ -13,6 +12,8 @@ import time
 import psycopg2
 import requests
 from github import Github
+
+from classes import Database, EnvVariables
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -22,26 +23,13 @@ logging.info("-------------------------OPEN PRs SCRIPT IS RUNNING---------------
 
 GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
-gitea_token = os.getenv("GITEA_TOKEN")
-github_token = os.getenv("GITHUB_TOKEN")
-github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
 
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT")
-db_csv = os.getenv("DB_CSV")  # main postgres db, where open PRs tables for both public and hybrid clouds are stored
-db_orph = os.getenv("DB_ORPH")  # dedicated db for orphans PRs (for both clouds) tables
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
+env_vars = EnvVariables()
+database = Database(env_vars)
 
-
-def check_env_variables():
-    required_env_vars = [
-        "GITHUB_TOKEN", "DB_HOST", "DB_PORT",
-        "DB_CSV", "DB_ORPH", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
-    ]
-    for var in required_env_vars:
-        if os.getenv(var) is None:
-            raise Exception(f"Missing environment variable: {var}")
+github_token = env_vars.github_token
+gitea_token = env_vars.gitea_token
+github_fallback_token = env_vars.github_fallback_token
 
 
 def csv_erase(filenames):
@@ -54,22 +42,7 @@ def csv_erase(filenames):
             else:
                 continue
     except Exception as e:
-        logging.error("CSV erase: error has been occured: %s", e)
-
-
-def connect_to_db(db_name):
-    logging.info("Connecting to Postgres (%s)...", db_name)
-    try:
-        return psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            dbname=db_name,
-            user=db_user,
-            password=db_password
-        )
-    except psycopg2.Error as e:
-        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
-        return None
+        logging.error("CSV erase: error has been occurred: %s", e)
 
 
 def create_prs_table(conn_csv, cur_csv, table_name):
@@ -105,6 +78,7 @@ def get_repos(org, cur_csv, gitea_token, rtc_table):
         logging.error("Fetching exclude repos for internal services: %s", e)
         return repos
 
+    max_pages = 50
     page = 1
 
     while True:
@@ -125,6 +99,10 @@ def get_repos(org, cur_csv, gitea_token, rtc_table):
             if repo["archived"] or repo["name"] in exclude_repos:
                 continue
             repos.append(repo["name"])
+
+        if page > max_pages:
+            logging.warning(f"Reached maximum page limit for {org}")
+            break
 
         link_header = repos_resp.headers.get("Link")
         if link_header is None or "rel=\"next\"" not in link_header:
@@ -408,6 +386,7 @@ def compare_csv_files(conn_csv, cur_csv, conn_orph, cur_orph, opentable):
                     pr1.extend([pr2[3], pr2[4]])
                     orphaned.append(pr1)
                     try:
+                        # print("ORPHANED----------------------------------------------", pr1, len(pr1))
                         cur_orph.execute(f"""
                             INSERT INTO public.{opentable}
                             ("Parent PR Number", "Service Name", "Squad", "Auto PR URL", "Auto PR State", "If merged",
@@ -519,12 +498,12 @@ def update_squad_and_title(cursors, conns, rtctable, opentable):
 
 
 def main(org, gh_org, rtctable, opentable, string, token):
-    check_env_variables()
+
     csv_erase(["proposalbot_prs.csv", "doc_exports_prs.csv", "orphaned_prs.csv"])
 
-    conn_csv = connect_to_db(db_csv)
+    conn_csv = database.connect_to_db(env_vars.db_csv)
     cur_csv = conn_csv.cursor()
-    conn_orph = connect_to_db(db_orph)
+    conn_orph = database.connect_to_db(env_vars.db_orph)
     cur_orph = conn_orph.cursor()
     g = Github(token)
     github_org = g.get_organization(gh_org)

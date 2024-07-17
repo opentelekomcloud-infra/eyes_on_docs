@@ -3,12 +3,13 @@ This script gathers info about github issues in infra repos, for ecosystem squad
 """
 
 import logging
-import os
 import time
 from datetime import datetime, timedelta
 
 import psycopg2
 from github import Github
+
+from classes import Database, EnvVariables
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -16,39 +17,11 @@ start_time = time.time()
 
 logging.info("-------------------------ECOSYSTEM ISSUES SCRIPT IS RUNNING-------------------------")
 
-github_token = os.getenv("GITHUB_TOKEN")
-github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
+env_vars = EnvVariables()
+database = Database(env_vars)
 
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_CSV")
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
-
-
-def check_env_variables():
-    required_env_vars = [
-        "GITHUB_TOKEN", "DB_HOST", "DB_PORT",
-        "DB_NAME", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
-    ]
-    for var in required_env_vars:
-        if os.getenv(var) is None:
-            raise Exception(f"Missing environment variable: {var}")
-
-
-def connect_to_db(db_name):
-    logging.info("Connecting to Postgres (%s)...", db_name)
-    try:
-        return psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            dbname=db_name,
-            user=db_user,
-            password=db_password
-        )
-    except psycopg2.Error as e:
-        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
-        return None
+github_token = env_vars.github_token
+github_fallback_token = env_vars.github_fallback_token
 
 
 def create_open_issues_table(conn, cur, table_name):
@@ -70,7 +43,7 @@ def create_open_issues_table(conn, cur, table_name):
         logging.info("Table %s has been created successfully", table_name)
     except psycopg2.Error as e:
         logging.error("Tables creating: an error occurred while trying to create a table %s in the database \
-                        %s: %s", table_name, db_name, e)
+                        %s: %s", table_name, env_vars.db_csv, e)
 
 
 def insert_issue_data(conn, cur, table_name, repo, issue):
@@ -111,11 +84,9 @@ def gather_issues(ghorg, conn, cur, table_name):
 
 
 def main(gorg, table_name, token):
-    check_env_variables()
     g = Github(token)
-
     ghorg = g.get_organization(gorg)
-    conn = connect_to_db(db_name)
+    conn = database.connect_to_db(env_vars.db_csv)
     cur = conn.cursor()
 
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
