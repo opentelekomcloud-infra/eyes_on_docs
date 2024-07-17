@@ -78,6 +78,7 @@ def get_repos(org, cur_csv, gitea_token, rtc_table):
         logging.error("Fetching exclude repos for internal services: %s", e)
         return repos
 
+    max_pages = 50
     page = 1
 
     while True:
@@ -98,6 +99,10 @@ def get_repos(org, cur_csv, gitea_token, rtc_table):
             if repo["archived"] or repo["name"] in exclude_repos:
                 continue
             repos.append(repo["name"])
+
+        if page > max_pages:
+            logging.warning(f"Reached maximum page limit for {org}")
+            break
 
         link_header = repos_resp.headers.get("Link")
         if link_header is None or "rel=\"next\"" not in link_header:
