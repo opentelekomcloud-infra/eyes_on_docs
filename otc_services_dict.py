@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 start_time = time.time()
 
-logging.info("-------------------------OTC SERVICES DICT SCRIPT IS RUNNING-------------------------")
+logging.info("-------------------------OTC SERVICES DICT SCRIPT IS RUNNING------------------------")
 
 BASE_URL = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 
