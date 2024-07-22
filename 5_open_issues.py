@@ -87,25 +87,33 @@ def get_gitea_issues(gitea_token, gitea_org):
     gitea_issues = []
     page = 1
     while True:
+        url = (
+            f"{GITEA_API_ENDPOINT}/repos/issues/search?state=open&owner={gitea_org}&page={page}"
+            f"&limit=1000&type=issues&token={gitea_token}"
+        )
         try:
-            repos_resp = requests.get(f"{GITEA_API_ENDPOINT}/repos/issues/search?state=open&owner={gitea_org}&page=\
-                                    {page}&limit=1000&token={gitea_token}", timeout=10)
-            repos_resp.raise_for_status()
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+
+            if not response.content:
+                logging.error("Received an empty response from the server.")
+                break
+
+            issues_list = response.json()
+            if not issues_list:
+                logging.info("No more issues returned by the server.")
+                break
+
+            gitea_issues.extend(issues_list)
+
         except requests.exceptions.RequestException as e:
-            logging.error("Gitea issues: an error occurred while trying to get Gitea issues for %s: %s", gitea_org, e)
+            logging.error(f"Gitea issues: an error occurred while trying to get Gitea issues for {gitea_org}: {e}")
             break
 
-        try:
-            issues_dict = json.loads(repos_resp.content.decode())
-            for issue in issues_dict:
-                gitea_issues.append(issue)
-        except json.JSONDecodeError as e:
-            logging.error("Gitea issues: an error occurred while trying to decode JSON: %s", e)
+        link_header = response.headers.get("Link")
+        if not link_header or "rel=\"next\"" not in link_header:
             break
 
-        link_header = repos_resp.headers.get("Link")
-        if link_header is None or "rel=\"next\"" not in link_header:
-            break
         page += 1
 
     return gitea_issues
