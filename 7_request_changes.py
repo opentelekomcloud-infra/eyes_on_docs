@@ -9,7 +9,6 @@ import requests
 
 from classes import Database, EnvVariables
 
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 start_time = time.time()
