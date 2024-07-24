@@ -25,6 +25,7 @@ class EnvVariables:
         self.gitea_token = os.getenv("GITEA_TOKEN")
         self.github_token = os.getenv("GITHUB_TOKEN")
         self.github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
+        self.api_key = os.getenv("OTC_BOT_API")
         self.check_env_variables()
 
     def check_env_variables(self):

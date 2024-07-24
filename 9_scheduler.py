@@ -3,14 +3,14 @@ This script sends Zulip messages to a corresponding squads via Zulip bot, based 
 """
 
 import logging
-import os
 import time
 from datetime import datetime
 from urllib.parse import quote
 
-import psycopg2
 import zulip
 from psycopg2.extras import DictCursor
+
+from classes import EnvVariables, Database
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -19,53 +19,25 @@ start_time = time.time()
 
 logging.info("-------------------------SCHEDULER IS RUNNING-------------------------")
 
-# Database and Zulip configuration, environment vars are used
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT")
-db_csv = os.getenv("DB_CSV")
-db_orph = os.getenv("DB_ORPH")
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
-api_key = os.getenv("OTC_BOT_API")
+env_vars = EnvVariables()
+database = Database(env_vars)
 
 # Zulip stream and topic mapping for each squad
 squad_streams = {
-    "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
-    "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
-    "Compute Squad": {"stream": "compute", "topic": "hc_alerts topic"},
-    "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"}
+    "Database Squad": {"stream": "4grafana", "topic": "testing"},
+    "Big Data and AI Squad": {"stream": "4grafana", "topic": "testing"},
+    "Compute Squad": {"stream": "4grafana", "topic": "testing"},
+    "Network Squad": {"stream": "4grafana", "topic": "testing"}
+    # "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
+    # "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
+    # "Compute Squad": {"stream": "compute", "topic": "hc_alerts topic"},
+    # "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"}
 }
-
-
-def check_env_variables():
-    required_env_vars = [
-        "DB_HOST", "DB_PORT",
-        "DB_CSV", "DB_ORPH", "DB_USER", "DB_PASSWORD", "OTC_BOT_API"
-    ]
-    for var in required_env_vars:
-        if os.getenv(var) is None:
-            raise Exception(f"Missing environment variable: {var}")
-
-
-def connect_to_db(db_name):
-    logging.info("Connecting to Postgres (%s)...", db_name)
-    try:
-        return psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            dbname=db_name,
-            user=db_user,
-            password=db_password,
-            cursor_factory=DictCursor
-        )
-    except psycopg2.Error as e:
-        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
-        return None
 
 
 def check_orphans(conn_orph, squad_name, stream_name, topic_name):
     results = []
-    cur_orph = conn_orph.cursor()
+    cur_orph = conn_orph.cursor(cursor_factory=DictCursor)
     tables = ["open_prs", "open_prs_swiss"]
     for table in tables:
         # here each query marked with zone marker (Public or Hybrid) for bring it into message
@@ -81,15 +53,14 @@ def check_orphans(conn_orph, squad_name, stream_name, topic_name):
             results = cur_orph.fetchall()
         if results:
             for row in results:
-                send_zulip_notification(row, api_key, stream_name, topic_name)
+                send_zulip_notification(row, env_vars.api_key, stream_name, topic_name)
 
 
 def check_open_issues(conn, squad_name, stream_name, topic_name):
     results = []
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=DictCursor)
     tables = ["open_issues", "open_issues_swiss"]
     for table in tables:
-        # here each query marked with zone marker (Public or Hybrid) for bring it into message
         if table == "open_issues":
             logging.info("Checking %s for %s", table, squad_name)
             query = f"""SELECT *, 'Public' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND
@@ -104,12 +75,12 @@ def check_open_issues(conn, squad_name, stream_name, topic_name):
             results = cur.fetchall()
         if results:
             for row in results:
-                send_zulip_notification(row, api_key, stream_name, topic_name)
+                send_zulip_notification(row, env_vars.api_key, stream_name, topic_name)
 
 
 def check_outdated_docs(conn, squad_name, stream_name, topic_name):
     results = []
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=DictCursor)
     tables = ["last_update_commit", "last_update_commit_swiss"]
     for table in tables:
         # here each query marked with zone marker (Public or Hybrid) for bring it into message
@@ -125,7 +96,7 @@ def check_outdated_docs(conn, squad_name, stream_name, topic_name):
             results = cur.fetchall()
         if results:
             for row in results:
-                send_zulip_notification(row, api_key, stream_name, topic_name)
+                send_zulip_notification(row, env_vars.api_key, stream_name, topic_name)
 
 
 def send_zulip_notification(row, api_key, stream_name, topic_name):
@@ -203,9 +174,8 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
 
 
 def main():
-    check_env_variables()
-    conn = connect_to_db(db_csv)
-    conn_orph = connect_to_db(db_orph)
+    conn = database.connect_to_db(env_vars.db_csv)
+    conn_orph = database.connect_to_db(env_vars.db_orph)
 
     for squad_name, channel in squad_streams.items():
         stream_name = channel["stream"]
