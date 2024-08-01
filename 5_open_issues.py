@@ -4,7 +4,6 @@ This script gather info regarding open issues in Gitea and Github
 
 import json
 import logging
-import os
 import re
 import time
 from datetime import datetime
@@ -12,6 +11,8 @@ from datetime import datetime
 import psycopg2
 import requests
 from github import Github
+
+from classes import Database, EnvVariables
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -22,40 +23,8 @@ logging.error("-------------------------OPEN ISSUES SCRIPT IS RUNNING-----------
 GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
 
-gitea_token = os.getenv("GITEA_TOKEN")
-github_token = os.getenv("GITHUB_TOKEN")
-github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
-
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_CSV")  # here we're using main postgres table since we don't need orphan PRs
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
-
-
-def check_env_variables():
-    required_env_vars = [
-        "GITHUB_TOKEN", "DB_HOST", "DB_PORT",
-        "DB_NAME", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
-    ]
-    for var in required_env_vars:
-        if os.getenv(var) is None:
-            raise Exception(f"Missing environment variable: {var}")
-
-
-def connect_to_db(db_name):
-    logging.info("Connecting to Postgres %s...", db_name)
-    try:
-        return psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            dbname=db_name,
-            user=db_user,
-            password=db_password
-        )
-    except psycopg2.Error as e:
-        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database %s:", e)
-        return None
+env_vars = EnvVariables()
+database = Database(env_vars)
 
 
 def create_open_issues_table(conn, cur, table_name):
@@ -79,7 +48,7 @@ def create_open_issues_table(conn, cur, table_name):
         logging.info("Table %s has been created successfully", table_name)
     except psycopg2.Error as e:
         logging.error("Tables creating: an error occurred while trying to create a table %s in the "
-                      "database %s: %s", table_name, db_name, e)
+                      "database %s: %s", table_name, env_vars.db_csv, e)
 
 
 def get_gitea_issues(gitea_token, gitea_org):
@@ -145,7 +114,7 @@ def get_github_issues(github_token, repo_names, gh_org):
 
 
 def get_issues_table(gh_org, gitea_issues, github_issues, cur, conn, table_name):
-    logging.info("Posting data to Postgres (%s)...", db_name)
+    logging.info("Posting data to Postgres (%s)...", env_vars.db_csv)
     try:
         for tea in gitea_issues:
             environment = "Gitea"
@@ -245,26 +214,25 @@ def update_squad_and_title(conn, cur, table_name, rtc):
 
 
 def main(org, gh_org, table_name, rtc, token):
-    check_env_variables()
     g = Github(token)
     github_org = g.get_organization(gh_org)
     repo_names = [repo.name for repo in github_org.get_repos()]
     logging.info("%s repos have been processed", len(repo_names))
 
-    gitea_issues = get_gitea_issues(gitea_token, org)
-    github_issues = get_github_issues(github_token, repo_names, gh_org)
-    conn = connect_to_db(db_name)
-    cur = conn.cursor()
+    gitea_issues = get_gitea_issues(env_vars.gitea_token, org)
+    github_issues = get_github_issues(env_vars.github_token, repo_names, gh_org)
+    conn_csv = database.connect_to_db(env_vars.db_csv)
+    cur_csv = conn_csv.cursor()
 
-    cur.execute(
+    cur_csv.execute(
         f'''DROP TABLE IF EXISTS {table_name}'''
     )
-    conn.commit()
+    conn_csv.commit()
 
-    create_open_issues_table(conn, cur, table_name)
-    get_issues_table(org, gitea_issues, github_issues, cur, conn, table_name)
-    update_squad_and_title(conn, cur, table_name, rtc)
-    conn.close()
+    create_open_issues_table(conn_csv, cur_csv, table_name)
+    get_issues_table(org, gitea_issues, github_issues, cur_csv, conn_csv, table_name)
+    update_squad_and_title(conn_csv, cur_csv, table_name, rtc)
+    conn_csv.close()
 
 
 if __name__ == '__main__':
@@ -275,14 +243,15 @@ if __name__ == '__main__':
 
     DONE = False
     try:
-        main(ORG_STRING, GH_ORG_STRING, OPEN_TABLE, RTC_TABLE, github_token)
-        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{OPEN_TABLE}_swiss", f"{RTC_TABLE}_swiss", github_token)
+        main(ORG_STRING, GH_ORG_STRING, OPEN_TABLE, RTC_TABLE, env_vars.github_token)
+        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{OPEN_TABLE}_swiss", f"{RTC_TABLE}_swiss",
+             env_vars.github_token)
         DONE = True
     except Exception as e:
         logging.error("An error occurred: %s", e)
-        main(ORG_STRING, GH_ORG_STRING, OPEN_TABLE, RTC_TABLE, github_fallback_token)
+        main(ORG_STRING, GH_ORG_STRING, OPEN_TABLE, RTC_TABLE, env_vars.github_fallback_token)
         main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{OPEN_TABLE}_swiss", f"{RTC_TABLE}_swiss",
-             github_fallback_token)
+             env_vars.github_fallback_token)
         DONE = True
     if DONE:
         logging.info("Github operations successfully done!")

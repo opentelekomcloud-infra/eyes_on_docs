@@ -3,13 +3,13 @@ This script retrieves info about parent PRs on Github
 """
 
 import logging
-import os
 import re
 import time
 
-import psycopg2
 import requests
 from github import Github
+
+from classes import Database, EnvVariables
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -17,39 +17,8 @@ start_time = time.time()
 
 logging.info("-------------------------GITHUB INFO SCRIPT IS RUNNING-------------------------")
 
-github_token = os.getenv("GITHUB_TOKEN")
-github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
-
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_ORPH")  # Here we're using dedicated postgres db for orphan PRs only
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
-
-
-def check_env_variables():
-    required_env_vars = [
-        "GITHUB_TOKEN", "DB_HOST", "DB_PORT",
-        "DB_NAME", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
-    ]
-    for var in required_env_vars:
-        if os.getenv(var) is None:
-            raise Exception(f"Missing environment variable: {var}")
-
-
-def connect_to_db(db_name):
-    logging.info(f"Connecting to Postgres ({db_name})...")
-    try:
-        return psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            dbname=db_name,
-            user=db_user,
-            password=db_password
-        )
-    except psycopg2.Error as e:
-        logging.info("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
-        return None
+env_vars = EnvVariables()
+database = Database(env_vars)
 
 
 def extract_pull_links(cur, table_name):
@@ -129,30 +98,29 @@ def update_orphaned_prs(org_str, cur, conn, rows, auto_prs, table_name):
 
 
 def main(org, gorg, table_name, token):
-    check_env_variables()
     g = Github(token)
 
     ghorg = g.get_organization(gorg)
     repo_names = [repo.name for repo in ghorg.get_repos()]
-    conn = connect_to_db(db_name)
-    cur = conn.cursor()
+    conn_orph = database.connect_to_db(env_vars.db_orph)
+    cur_orph = conn_orph.cursor()
 
-    pull_links = extract_pull_links(cur, table_name)
+    pull_links = extract_pull_links(cur_orph, table_name)
 
     auto_prs = []
     logging.info("Gathering PRs info...")
     for repo_name in repo_names:
-        auto_prs += get_auto_prs(gorg, repo_name, github_token, pull_links)
+        auto_prs += get_auto_prs(gorg, repo_name, env_vars.github_token, pull_links)
 
-    add_github_columns(cur, conn, table_name)
+    add_github_columns(cur_orph, conn_orph, table_name)
 
-    cur.execute(f'SELECT id, "Auto PR URL" FROM {table_name};')
-    rows = cur.fetchall()
+    cur_orph.execute(f'SELECT id, "Auto PR URL" FROM {table_name};')
+    rows = cur_orph.fetchall()
 
-    update_orphaned_prs(org, cur, conn, rows, auto_prs, table_name)
+    update_orphaned_prs(org, cur_orph, conn_orph, rows, auto_prs, table_name)
 
-    cur.close()
-    conn.close()
+    cur_orph.close()
+    conn_orph.close()
 
 
 if __name__ == "__main__":
@@ -162,13 +130,13 @@ if __name__ == "__main__":
 
     DONE = False
     try:
-        main(ORG_STRING, GH_ORG_STR, ORPH_TABLE, github_token)
-        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STR}-swiss", f"{ORPH_TABLE}_swiss", github_token)
+        main(ORG_STRING, GH_ORG_STR, ORPH_TABLE, env_vars.github_token)
+        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STR}-swiss", f"{ORPH_TABLE}_swiss", env_vars.github_token)
         DONE = True
     except Exception as e:
         logging.info(f"Error has been occurred: {e}")
-        main(ORG_STRING, GH_ORG_STR, ORPH_TABLE, github_fallback_token)
-        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STR}-swiss", f"{ORPH_TABLE}_swiss", github_fallback_token)
+        main(ORG_STRING, GH_ORG_STR, ORPH_TABLE, env_vars.github_fallback_token)
+        main(f"{ORG_STRING}-swiss", f"{GH_ORG_STR}-swiss", f"{ORPH_TABLE}_swiss", env_vars.github_fallback_token)
         DONE = True
     if DONE:
         logging.info("Github operations successfully done!")

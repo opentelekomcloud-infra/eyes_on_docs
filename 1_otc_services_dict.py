@@ -5,12 +5,13 @@ service postgres tables, to match repo names, service full names and its squads
 
 import base64
 import logging
-import os
 import time
 
 import psycopg2
 import requests
 import yaml
+
+from classes import Database, EnvVariables
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -20,33 +21,8 @@ logging.info("-------------------------OTC SERVICES DICT SCRIPT IS RUNNING------
 
 BASE_URL = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 
-gitea_token = os.getenv("GITEA_TOKEN")
-headers = {
-    "Authorization": f"token {gitea_token}"
-}
-
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT")
-db_csv = os.getenv("DB_CSV")
-db_orph = os.getenv("DB_ORPH")
-db_zuul = os.getenv("DB_ZUUL")
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
-
-
-def connect_to_db(db):
-    logging.info("Connecting to Postgres (%s)...", db)
-    try:
-        return psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            dbname=db,
-            user=db_user,
-            password=db_password
-        )
-    except psycopg2.Error as e:
-        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
-        return None
+env_vars = EnvVariables()
+database = Database(env_vars)
 
 
 def create_rtc_table(conn_csv, cur_csv, table_name):
@@ -86,7 +62,7 @@ def create_doc_table(conn_csv, cur_csv, table_name):
 
 
 def get_pretty_category_names(base_dir, category_dir):
-    response = requests.get(f"{BASE_URL}{category_dir}", timeout=10, headers=headers)
+    response = requests.get(f"{BASE_URL}{category_dir}", timeout=10)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -94,7 +70,7 @@ def get_pretty_category_names(base_dir, category_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10, headers=headers)
+            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -109,7 +85,7 @@ def get_pretty_category_names(base_dir, category_dir):
 def get_service_categories(base_dir, category_dir, services_dir):
     pretty_names = get_pretty_category_names(base_dir, category_dir)
 
-    response = requests.get(f"{BASE_URL}{services_dir}", timeout=10, headers=headers)
+    response = requests.get(f"{BASE_URL}{services_dir}", timeout=10)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -117,7 +93,7 @@ def get_service_categories(base_dir, category_dir, services_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10, headers=headers)
+            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -139,7 +115,7 @@ def get_service_categories(base_dir, category_dir, services_dir):
 
 
 def get_docs_info(base_dir, doc_dir):
-    response = requests.get(f"{BASE_URL}{doc_dir}", timeout=10, headers=headers)
+    response = requests.get(f"{BASE_URL}{doc_dir}", timeout=10)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -147,7 +123,7 @@ def get_docs_info(base_dir, doc_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10, headers=headers)
+            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -179,7 +155,7 @@ def insert_services_data(item, conn_csv, cur_csv, table_name):
 
 
 def get_squad_description(styring_url):
-    response = requests.get(styring_url, timeout=10, headers=headers)
+    response = requests.get(styring_url, timeout=10)
     response.raise_for_status()
 
     file_content_base64 = response.json()['content']
@@ -266,15 +242,15 @@ def main(base_dir, rtctable, doctable, styring_path):
     services_dir = f"{base_dir}otc_metadata/data/services"
     category_dir = f"{base_dir}otc_metadata/data/service_categories"
     doc_dir = f"{base_dir}otc_metadata/data/documents"
-    styring_url = f"{BASE_URL}{styring_path}{gitea_token}"
+    styring_url = f"{BASE_URL}{styring_path}{env_vars.gitea_token}"
 
-    conn_orph = connect_to_db(db_orph)
+    conn_orph = database.connect_to_db(env_vars.db_orph)
     cur_orph = conn_orph.cursor()
 
-    conn_zuul = connect_to_db(db_zuul)
+    conn_zuul = database.connect_to_db(env_vars.db_zuul)
     cur_zuul = conn_zuul.cursor()
 
-    conn_csv = connect_to_db(db_csv)
+    conn_csv = database.connect_to_db(env_vars.db_csv)
     cur_csv = conn_csv.cursor()
 
     conns = [conn_orph, conn_zuul]
@@ -315,7 +291,7 @@ if __name__ == "__main__":
 
     main(BASE_DIR_REGULAR, BASE_RTC_TABLE, BASE_DOC_TABLE, STYRING_URL_REGULAR)
     main(BASE_DIR_SWISS, f"{BASE_RTC_TABLE}_swiss", f"{BASE_DOC_TABLE}_swiss", STYRING_URL_SWISS)
-    conn_csv = connect_to_db(db_csv)
+    conn_csv = database.connect_to_db(env_vars.db_csv)
     cur_csv = conn_csv.cursor()
     add_obsolete_services(conn_csv, cur_csv)
     conn_csv.commit()

@@ -1,12 +1,13 @@
 import json
 import logging
-import os
 import re
 import time
 from datetime import datetime
 
 import psycopg2
 import requests
+
+from classes import Database, EnvVariables
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -16,38 +17,9 @@ logging.info("-------------------------REQUEST CHANGES SCRIPT IS RUNNING--------
 
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
-gitea_token = os.getenv("GITEA_TOKEN")
 
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT")
-db_csv = os.getenv("DB_CSV")  # main postgres db, where open PRs tables for both public and hybrid clouds are stored
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
-
-
-def check_env_variables():
-    required_env_vars = [
-        "DB_HOST", "DB_PORT",
-        "DB_CSV", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
-    ]
-    for var in required_env_vars:
-        if os.getenv(var) is None:
-            raise Exception("Missing environment variable: %s", var)
-
-
-def connect_to_db(db_name):
-    logging.info("Connecting to Postgres (%s)...", db_name)
-    try:
-        return psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            dbname=db_name,
-            user=db_user,
-            password=db_password
-        )
-    except psycopg2.Error as e:
-        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
-        return None
+env_vars = EnvVariables()
+database = Database(env_vars)
 
 
 def create_prs_table(conn, cur, table_name):
@@ -77,7 +49,6 @@ def get_repos(cur, rtc):
     try:
         cur.execute(f"SELECT DISTINCT \"Repository\" FROM {rtc} WHERE \"Env\" = 'public';")
         repos = [row[0] for row in cur.fetchall()]
-        # repos.append('doc-exports')
         if not repos:
             logging.info("No repositories found.")
     except Exception as e:
@@ -92,7 +63,7 @@ def get_pr_number(org, repo):
     while True:
         try:
             repo_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=open&page={page}"
-                                    f"&limit=1000&token={gitea_token}")
+                                    f"&limit=1000&token={env_vars.gitea_token}")
             repo_resp.raise_for_status()
             pull_requests = json.loads(repo_resp.content.decode())
         except requests.exceptions.HTTPError as e:
@@ -130,7 +101,7 @@ def process_pr_reviews(org, repo, pr_number, changes_tab):
     reviews = []
     try:
         reviews_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/reviews?token="
-                                   f"{gitea_token}")
+                                   f"{env_vars.gitea_token}")
         reviews_resp.raise_for_status()
         reviews = json.loads(reviews_resp.content.decode())
     except requests.exceptions.HTTPError as e:
@@ -157,7 +128,7 @@ def get_last_commit(org, repo, pr_number, reviewer_login, last_review_date, chan
 
     try:
         commits_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/commits?token="
-                                   f"{gitea_token}")
+                                   f"{env_vars.gitea_token}")
         commits_resp.raise_for_status()
         commits = json.loads(commits_resp.content.decode())
     except requests.exceptions.RequestException as e:
@@ -184,7 +155,7 @@ def get_last_commit(org, repo, pr_number, reviewer_login, last_review_date, chan
 def insert_data_postgres(org, repo, pr_number, conn, cur, activity_date, changes_tab):
     try:
         filtered_reviews_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/"
-                                            f"reviews?token={gitea_token}")
+                                            f"reviews?token={env_vars.gitea_token}")
         filtered_reviews_resp.raise_for_status()
         filtered_reviews = json.loads(filtered_reviews_resp.content.decode())
     except requests.exceptions.RequestException as e:
@@ -223,7 +194,8 @@ def parent_pr_changes_check(cur, conn, org, changes_tab):
 
     for repo, pr_number in repo_pr_dict.items():
         try:
-            pr_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}?token={gitea_token}")
+            pr_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}?token="
+                                  f"{env_vars.gitea_token}")
             pr_resp.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
@@ -250,7 +222,7 @@ def parent_pr_changes_check(cur, conn, org, changes_tab):
             parent_reviews = []
             try:
                 parent_reviews_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo_name}/pulls/"
-                                                  f"{parent_pr_number}/reviews?token={gitea_token}")
+                                                  f"{parent_pr_number}/reviews?token={env_vars.gitea_token}")
                 parent_reviews_resp.raise_for_status()
                 parent_reviews = json.loads(parent_reviews_resp.content.decode())
             except requests.exceptions.HTTPError as e:
@@ -320,8 +292,6 @@ def update_squad_and_title(cur, conn, rtc, changes_tab):
 
 
 def main(org, rtc, changes_tab):
-    check_env_variables()
-
     cur_csv.execute(f"DROP TABLE IF EXISTS {changes_tab}")
     conn_csv.commit()
 
@@ -347,7 +317,7 @@ if __name__ == "__main__":
     rtc_table = "repo_title_category"
     changes_table = "requested_changes"
 
-    conn_csv = connect_to_db(db_csv)
+    conn_csv = database.connect_to_db(env_vars.db_csv)
     cur_csv = conn_csv.cursor()
 
     done = False

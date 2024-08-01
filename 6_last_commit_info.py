@@ -3,7 +3,6 @@ This script provides logic to retrieve info about last date when document was up
 """
 
 import logging
-import os
 import shutil
 import tempfile
 import time
@@ -12,45 +11,16 @@ from datetime import datetime
 import psycopg2
 from github import Github
 
+from classes import Database, EnvVariables
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 start_time = time.time()
 
 logging.info("-------------------------LAST COMMIT INFO SCRIPT IS RUNNING-------------------------")
 
-github_token = os.getenv("GITHUB_TOKEN")
-github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
-
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_CSV")  # Here we're using main postgres db since we don't need orphan PRs
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
-
-
-def check_env_variables():
-    required_env_vars = [
-        "GITHUB_TOKEN", "DB_HOST", "DB_PORT",
-        "DB_NAME", "DB_USER", "DB_PASSWORD", "GITEA_TOKEN"
-    ]
-    for var in required_env_vars:
-        if os.getenv(var) is None:
-            raise Exception("Missing environment variable: %s" % var)
-
-
-def connect_to_db(db_name):
-    logging.info("Connecting to Postgres (%s)...", db_name)
-    try:
-        return psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            dbname=db_name,
-            user=db_user,
-            password=db_password
-        )
-    except psycopg2.Error as e:
-        logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
-        return None
+env_vars = EnvVariables()
+database = Database(env_vars)
 
 
 def create_commits_table(conn, cur, table_name):
@@ -156,19 +126,18 @@ def update_squad_and_title(conn, cur, table_name, rtc):
 
 
 def main(gorg, table_name, rtc, gh_str, token):
-    check_env_variables()
     g = Github(token)
     org = g.get_organization(gorg)
-    conn = connect_to_db(db_name)
-    cur = conn.cursor()
-    cur.execute(f"DROP TABLE IF EXISTS {table_name}")
-    create_commits_table(conn, cur, table_name)
+    conn_csv = database.connect_to_db(env_vars.db_csv)
+    cur_csv = conn_csv.cursor()
+    cur_csv.execute(f"DROP TABLE IF EXISTS {table_name}")
+    create_commits_table(conn_csv, cur_csv, table_name)
     logging.info("Searching for a most recent commit in umn/source...")
-    get_last_commit(org, conn, cur, "umn/source", gh_str, table_name)
+    get_last_commit(org, conn_csv, cur_csv, "umn/source", gh_str, table_name)
     logging.info("Searching for a most recent commit in api-ref/source...")
-    get_last_commit(org, conn, cur, "api-ref/source", gh_str, table_name)
-    update_squad_and_title(conn, cur, table_name, rtc)
-    conn.commit()
+    get_last_commit(org, conn_csv, cur_csv, "api-ref/source", gh_str, table_name)
+    update_squad_and_title(conn_csv, cur_csv, table_name, rtc)
+    conn_csv.commit()
 
 
 if __name__ == "__main__":
@@ -178,14 +147,15 @@ if __name__ == "__main__":
 
     DONE = False
     try:
-        main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, github_token)
-        main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss", github_token)
+        main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, env_vars.github_token)
+        main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss",
+             env_vars.github_token)
         DONE = True
     except Exception as e:
         logging.info("Error has been occurred: %s", e)
-        main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, github_fallback_token)
+        main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, env_vars.github_fallback_token)
         main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss",
-             github_fallback_token)
+             env_vars.github_fallback_token)
         DONE = True
     if DONE:
         logging.info("Github operations successfully done!")
