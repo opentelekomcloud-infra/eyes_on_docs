@@ -3,21 +3,12 @@ This script gather and process info about all services in OTC, both public and h
 service postgres tables, to match repo names, service full names and its squads
 """
 
-import base64
 import logging
-import time
-
-import psycopg2
+import base64
 import requests
 import yaml
 
-from classes import Database, EnvVariables
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-start_time = time.time()
-
-logging.info("-------------------------OTC SERVICES DICT SCRIPT IS RUNNING-------------------------")
+from config import Database, EnvVariables, setup_logging, Timer
 
 BASE_URL = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 
@@ -281,7 +272,14 @@ def main(base_dir, rtctable, doctable, styring_path):
     conn_csv.close()
 
 
-if __name__ == "__main__":
+def run():
+    timer = Timer()
+    timer.start()
+
+    setup_logging()
+
+    logging.info("-------------------------OTC SERVICES DICT SCRIPT IS RUNNING-------------------------")
+
     BASE_DIR_SWISS = "/repos/infra/otc-metadata-swiss/contents/"
     BASE_DIR_REGULAR = "/repos/infra/otc-metadata/contents/"
     STYRING_URL_REGULAR = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/data.yaml?token="
@@ -297,7 +295,8 @@ if __name__ == "__main__":
     conn_csv.commit()
     conn_csv.close()
 
-    end_time = time.time()
-    execution_time = end_time - start_time
-    minutes, seconds = divmod(execution_time, 60)
-    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
+    timer.stop()
+
+
+if __name__ == "__main__":
+    run()

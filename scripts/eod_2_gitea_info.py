@@ -7,19 +7,12 @@ import json
 import logging
 import pathlib
 import re
-import time
 
 import psycopg2
 import requests
 from github import Github
 
-from classes import Database, EnvVariables
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-start_time = time.time()
-
-logging.info("-------------------------OPEN PRs SCRIPT IS RUNNING-------------------------")
+from config import Database, EnvVariables, setup_logging, Timer
 
 GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
@@ -498,7 +491,6 @@ def update_squad_and_title(cursors, conns, rtctable, opentable):
 
 
 def main(org, gh_org, rtctable, opentable, string, token):
-
     csv_erase(["proposalbot_prs.csv", "doc_exports_prs.csv", "orphaned_prs.csv"])
 
     conn_csv = database.connect_to_db(env_vars.db_csv)
@@ -538,7 +530,13 @@ def main(org, gh_org, rtctable, opentable, string, token):
         conn.close()
 
 
-if __name__ == "__main__":
+def run():
+    timer = Timer()
+    timer.start()
+
+    setup_logging()
+    logging.info("-------------------------OPEN PRs SCRIPT IS RUNNING-------------------------")
+
     RTC_TABLE = "repo_title_category"
     OPEN_TABLE = "open_prs"
     ORG_STRING = "docs"
@@ -561,7 +559,8 @@ if __name__ == "__main__":
         logging.info("Github operations successfully done!")
 
     csv_erase(["proposalbot_prs.csv", "doc_exports_prs.csv", "orphaned_prs.csv"])
-    end_time = time.time()
-    execution_time = end_time - start_time
-    minutes, seconds = divmod(execution_time, 60)
-    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
+    timer.stop()
+
+
+if __name__ == "__main__":
+    run()

@@ -1,19 +1,12 @@
 import json
 import logging
 import re
-import time
 from datetime import datetime
 
 import psycopg2
 import requests
 
-from classes import Database, EnvVariables
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-start_time = time.time()
-
-logging.info("-------------------------REQUEST CHANGES SCRIPT IS RUNNING-------------------------")
+from config import Database, EnvVariables, setup_logging, Timer
 
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
@@ -97,7 +90,7 @@ def convert_iso_to_datetime(iso_str):
     return datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
 
 
-def process_pr_reviews(org, repo, pr_number, changes_tab):
+def process_pr_reviews(org, repo, pr_number, changes_tab, conn_csv, cur_csv):
     reviews = []
     try:
         reviews_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/reviews?token="
@@ -121,11 +114,10 @@ def process_pr_reviews(org, repo, pr_number, changes_tab):
         last_review_date = convert_iso_to_datetime(last_review_date_str)
         reviewer_login = final_review['user']['login']
 
-        get_last_commit(org, repo, pr_number, reviewer_login, last_review_date, changes_tab)
+        get_last_commit(org, repo, pr_number, reviewer_login, last_review_date, changes_tab, conn_csv, cur_csv)
 
 
-def get_last_commit(org, repo, pr_number, reviewer_login, last_review_date, changes_tab):
-
+def get_last_commit(org, repo, pr_number, reviewer_login, last_review_date, changes_tab, conn_csv, cur_csv):
     try:
         commits_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/commits?token="
                                    f"{env_vars.gitea_token}")
@@ -292,6 +284,8 @@ def update_squad_and_title(cur, conn, rtc, changes_tab):
 
 
 def main(org, rtc, changes_tab):
+    conn_csv = database.connect_to_db(env_vars.db_csv)
+    cur_csv = conn_csv.cursor()
     cur_csv.execute(f"DROP TABLE IF EXISTS {changes_tab}")
     conn_csv.commit()
 
@@ -305,20 +299,26 @@ def main(org, rtc, changes_tab):
         prs = get_pr_number(org, repo)
         for pr_info in prs:
             pr_number = pr_info['pr_number']
-            process_pr_reviews(org, repo, pr_number, changes_tab)
+            process_pr_reviews(org, repo, pr_number, changes_tab, conn_csv, cur_csv)
 
     parent_pr_changes_check(cur_csv, conn_csv, org, changes_tab)
     parent_pr_changes_check(cur_csv, conn_csv, org, "our_side_problem")
     update_squad_and_title(cur_csv, conn_csv, rtc, changes_tab)
 
 
-if __name__ == "__main__":
-    org_string = "docs"
-    rtc_table = "repo_title_category"
-    changes_table = "requested_changes"
+def run():
+    timer = Timer()
+    timer.start()
+
+    setup_logging()
+    logging.info("-------------------------REQUEST CHANGES SCRIPT IS RUNNING-------------------------")
 
     conn_csv = database.connect_to_db(env_vars.db_csv)
     cur_csv = conn_csv.cursor()
+
+    org_string = "docs"
+    rtc_table = "repo_title_category"
+    changes_table = "requested_changes"
 
     done = False
 
@@ -335,7 +335,11 @@ if __name__ == "__main__":
     if done:
         logging.info("Search successfully finish!")
 
-    end_time = time.time()
-    execution_time = end_time - start_time
-    minutes, seconds = divmod(execution_time, 60)
-    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
+    cur_csv.close()
+    conn_csv.close()
+
+    timer.stop()
+
+
+if __name__ == "__main__":
+    run()
