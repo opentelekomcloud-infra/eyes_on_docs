@@ -3,8 +3,7 @@ This script is an entry point for all other modules included in Eyes-on-Docs
 """
 
 import argparse
-import sys
-from scripts import eod_1_otc_services_dict, eod_2_gitea_info, eod_3_github_info, eod_4_failed_zuul,\
+from scripts import eod_1_otc_services_dict, eod_2_gitea_info, eod_3_github_info, eod_4_failed_zuul, \
     eod_5_open_issues, eod_6_last_commit_info, eod_7_request_changes, eod_8_ecosystem_issues, eod_9_scheduler
 
 
