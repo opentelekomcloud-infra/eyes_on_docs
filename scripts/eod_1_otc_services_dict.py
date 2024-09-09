@@ -7,6 +7,7 @@ import logging
 import base64
 import requests
 import yaml
+import psycopg2
 
 from config import Database, EnvVariables, setup_logging, Timer
 
