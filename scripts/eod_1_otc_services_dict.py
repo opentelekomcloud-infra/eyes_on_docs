@@ -3,13 +3,14 @@ This script gather and process info about all services in OTC, both public and h
 service postgres tables, to match repo names, service full names and its squads
 """
 
-import logging
 import base64
+import logging
+
+import psycopg2
 import requests
 import yaml
-import psycopg2
 
-from config import Database, EnvVariables, setup_logging, Timer
+from config import Database, EnvVariables, Timer, setup_logging
 
 BASE_URL = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 

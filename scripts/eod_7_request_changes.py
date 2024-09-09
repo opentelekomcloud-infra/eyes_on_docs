@@ -6,7 +6,7 @@ from datetime import datetime
 import psycopg2
 import requests
 
-from config import Database, EnvVariables, setup_logging, Timer
+from config import Database, EnvVariables, Timer, setup_logging
 
 gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()

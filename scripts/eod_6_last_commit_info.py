@@ -10,7 +10,7 @@ from datetime import datetime
 import psycopg2
 from github import Github
 
-from config import Database, EnvVariables, setup_logging, Timer
+from config import Database, EnvVariables, Timer, setup_logging
 
 env_vars = EnvVariables()
 database = Database(env_vars)

@@ -9,7 +9,7 @@ from urllib.parse import quote
 import zulip
 from psycopg2.extras import DictCursor
 
-from config import Database, EnvVariables, setup_logging, Timer
+from config import Database, EnvVariables, Timer, setup_logging
 
 env_vars = EnvVariables()
 database = Database(env_vars)

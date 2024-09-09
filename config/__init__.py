@@ -1,5 +1,6 @@
-from .classes import EnvVariables, Database, Timer
 import logging
+
+from .classes import Database, EnvVariables, Timer
 
 
 def setup_logging():

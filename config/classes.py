@@ -2,8 +2,8 @@
 This script contains data classes for code reusing
 """
 import logging
-import time
 import os
+import time
 
 import psycopg2
 
