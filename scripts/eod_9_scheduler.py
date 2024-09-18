@@ -23,6 +23,8 @@ squad_streams = {
     "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
     "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
     "Compute Squad": {"stream": "compute", "topic": "hc_alerts topic"},
+    "Storage Squad": {"stream": "Storage Squad", "topic": "helpcenter_alerts"},
+    "Container squad": {"stream": "Container squad", "topic": "Doc alerts"},
     "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"}
 }
 
