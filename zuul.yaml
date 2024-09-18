@@ -1,22 +1,22 @@
 ---
 
 - job:
-    name: grafana-docs-monitoring-build-image
+    name: eyes-on-docs-build-image
     parent: otc-build-container-image
-    description: Build grafana-docs-monitoring container image
-    provides: grafana-docs-monitoring-image
-    vars: &gdm_image_vars
+    description: Build eyes-on-docs container image
+    provides: eyes-on-docs-image
+    vars: &eod_image_vars
       container_images:
         - context: .
           registry: quay.io
-          repository: opentelekomcloud/grafana-docs-monitoring
+          repository: opentelekomcloud/eyes-on-docs
           tags:
             &imagetag "{{ zuul.tag is defined | ternary([zuul.get('tag', '').split('.')[0], '.'.join(zuul.get('tag', '').split('.')[:2]), zuul.get('tag', '')], ['latest']) }}"
 
 - job:
-    name: grafana-docs-monitoring-upload-image
+    name: eyes-on-docs-upload-image
     parent: otcinfra-upload-container-images
-    vars: *gdm_image_vars
+    vars: *eod_image_vars
 
 - project:
     merge-mode: squash-merge
@@ -25,10 +25,10 @@
       node_version: 18
     check:
       jobs:
-        - grafana-docs-monitoring-build-image
+        - eyes-on-docs-build-image
     gate:
       jobs:
-        - grafana-docs-monitoring-upload-image
+        - eyes-on-docs-upload-image
     release:
       jobs:
-        - grafana-docs-monitoring-upload-image
+        - eyes-on-docs-upload-image

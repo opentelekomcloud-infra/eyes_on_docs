@@ -23,6 +23,9 @@ squad_streams = {
     "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
     "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
     "Compute Squad": {"stream": "compute", "topic": "hc_alerts topic"},
+    "Security Services Squad": {"stream": "security services", "topic": "Doc Alerts"},
+    "CMS Squad": {"stream": "CMS Squad", "topic": "Doc alerts"},
+    "PaaS Squad": {"stream": "PaaS Squad", "topic": "Doc alerts"},
     "Storage Squad": {"stream": "Storage Squad", "topic": "helpcenter_alerts"},
     "Container squad": {"stream": "Container squad", "topic": "Doc alerts"},
     "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"}
