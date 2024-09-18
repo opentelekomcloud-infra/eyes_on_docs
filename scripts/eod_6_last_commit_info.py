@@ -5,19 +5,12 @@ This script provides logic to retrieve info about last date when document was up
 import logging
 import shutil
 import tempfile
-import time
 from datetime import datetime
 
 import psycopg2
 from github import Github
 
-from classes import Database, EnvVariables
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-start_time = time.time()
-
-logging.info("-------------------------LAST COMMIT INFO SCRIPT IS RUNNING-------------------------")
+from config import Database, EnvVariables, Timer, setup_logging
 
 env_vars = EnvVariables()
 database = Database(env_vars)
@@ -140,27 +133,34 @@ def main(gorg, table_name, rtc, gh_str, token):
     conn_csv.commit()
 
 
-if __name__ == "__main__":
+def run():
+    timer = Timer()
+    timer.start()
+
+    setup_logging()
+    logging.info("-------------------------LAST COMMIT INFO SCRIPT IS RUNNING-------------------------")
+
     GH_ORG_STR = "opentelekomcloud-docs"
     COMMIT_TABLE = "last_update_commit"
     RTC_TABLE = "repo_title_category"
 
-    DONE = False
+    done = False
     try:
         main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, env_vars.github_token)
         main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss",
              env_vars.github_token)
-        DONE = True
+        done = True
     except Exception as e:
         logging.info("Error has been occurred: %s", e)
         main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, env_vars.github_fallback_token)
         main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss",
              env_vars.github_fallback_token)
-        DONE = True
-    if DONE:
+        done = True
+    if done:
         logging.info("Github operations successfully done!")
 
-    end_time = time.time()
-    execution_time = end_time - start_time
-    minutes, seconds = divmod(execution_time, 60)
-    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
+    timer.stop()
+
+
+if __name__ == "__main__":
+    run()
