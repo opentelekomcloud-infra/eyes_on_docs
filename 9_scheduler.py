@@ -35,7 +35,7 @@ squad_streams = {
     "CMS Squad": {"stream": "CMS Squad", "topic": "Doc alerts"},
     "PaaS Squad": {"stream": "PaaS Squad", "topic": "Doc alerts"},
     "Storage Squad": {"stream": "Storage Squad", "topic": "helpcenter_alerts"},
-    "Container squad": {"stream": "Container squad", "topic": "Doc alerts"},
+    "Container Squad": {"stream": "Container squad", "topic": "Doc alerts"},
     "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"}
 }
 
