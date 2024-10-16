@@ -5,20 +5,13 @@ This script gather info regarding open issues in Gitea and Github
 import json
 import logging
 import re
-import time
 from datetime import datetime
 
 import psycopg2
 import requests
 from github import Github
 
-from classes import Database, EnvVariables
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-start_time = time.time()
-
-logging.error("-------------------------OPEN ISSUES SCRIPT IS RUNNING-------------------------")
+from config import Database, EnvVariables, Timer, setup_logging
 
 GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
@@ -235,28 +228,35 @@ def main(org, gh_org, table_name, rtc, token):
     conn_csv.close()
 
 
-if __name__ == '__main__':
+def run():
+    timer = Timer()
+    timer.start()
+
+    setup_logging()
+    logging.info("-------------------------OPEN ISSUES SCRIPT IS RUNNING-------------------------")
+
     ORG_STRING = "docs"
     GH_ORG_STRING = "opentelekomcloud-docs"
     OPEN_TABLE = "open_issues"
     RTC_TABLE = "repo_title_category"
 
-    DONE = False
+    done = False
     try:
         main(ORG_STRING, GH_ORG_STRING, OPEN_TABLE, RTC_TABLE, env_vars.github_token)
         main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{OPEN_TABLE}_swiss", f"{RTC_TABLE}_swiss",
              env_vars.github_token)
-        DONE = True
+        done = True
     except Exception as e:
         logging.error("An error occurred: %s", e)
         main(ORG_STRING, GH_ORG_STRING, OPEN_TABLE, RTC_TABLE, env_vars.github_fallback_token)
         main(f"{ORG_STRING}-swiss", f"{GH_ORG_STRING}-swiss", f"{OPEN_TABLE}_swiss", f"{RTC_TABLE}_swiss",
              env_vars.github_fallback_token)
-        DONE = True
-    if DONE:
+        done = True
+    if done:
         logging.info("Github operations successfully done!")
 
-    end_time = time.time()
-    execution_time = end_time - start_time
-    minutes, seconds = divmod(execution_time, 60)
-    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
+    timer.stop()
+
+
+if __name__ == '__main__':
+    run()

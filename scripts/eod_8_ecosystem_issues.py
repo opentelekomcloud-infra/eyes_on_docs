@@ -3,19 +3,12 @@ This script gathers info about github issues in infra repos, for ecosystem squad
 """
 
 import logging
-import time
 from datetime import datetime, timedelta
 
 import psycopg2
 from github import Github
 
-from classes import Database, EnvVariables
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-start_time = time.time()
-
-logging.info("-------------------------ECOSYSTEM ISSUES SCRIPT IS RUNNING-------------------------")
+from config import Database, EnvVariables, Timer, setup_logging
 
 env_vars = EnvVariables()
 database = Database(env_vars)
@@ -99,7 +92,13 @@ def main(gorg, table_name, token):
     conn.close()
 
 
-if __name__ == "__main__":
+def run():
+    timer = Timer()
+    timer.start()
+
+    setup_logging()
+    logging.info("-------------------------ECOSYSTEM ISSUES SCRIPT IS RUNNING-------------------------")
+
     GH_ORG_STR = "opentelekomcloud"
     ISSUES_TABLE = "open_issues_eco"
 
@@ -114,7 +113,8 @@ if __name__ == "__main__":
     if DONE:
         logging.info("Github operations successfully done!")
 
-    end_time = time.time()
-    execution_time = end_time - start_time
-    minutes, seconds = divmod(execution_time, 60)
-    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
+    timer.stop()
+
+
+if __name__ == "__main__":
+    run()

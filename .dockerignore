@@ -1,0 +1,8 @@
+*.png
+__pycache__/
+*.pyc
+dashboards/
+.github/
+*.ini
+*.yaml
+*.md
