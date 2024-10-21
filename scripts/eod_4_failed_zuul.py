@@ -5,19 +5,12 @@ This script gathers info regarding PRs, which check jobs in zuul has been failed
 import json
 import logging
 import re
-import time
 from datetime import datetime
 
 import psycopg2
 import requests
 
-from classes import Database, EnvVariables
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-start_time = time.time()
-
-logging.info("-------------------------FAILED PRS SCRIPT IS RUNNING-------------------------")
+from config import Database, EnvVariables, Timer, setup_logging
 
 GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
@@ -276,13 +269,19 @@ def main(org, table_name, rtc):
     for repo in repos:
         get_failed_prs(org, repo, env_vars.gitea_token, conn_zuul, cur_zuul, table_name)
 
-    update_squad_and_title(conn_zuul, cur_zuul, rtc, FAILED_TABLE)
+    update_squad_and_title(conn_zuul, cur_zuul, rtc, table_name)
 
     cur_zuul.close()
     conn_zuul.close()
 
 
-if __name__ == "__main__":
+def run():
+    timer = Timer()
+    timer.start()
+
+    setup_logging()
+    logging.info("-------------------------FAILED PRS SCRIPT IS RUNNING-------------------------")
+
     ORG_STRING = "docs"
     FAILED_TABLE = "open_prs"
     RTC_TABLE = "repo_title_category"
@@ -290,7 +289,8 @@ if __name__ == "__main__":
     main(ORG_STRING, FAILED_TABLE, RTC_TABLE)
     main(f"{ORG_STRING}-swiss", f"{FAILED_TABLE}_swiss", f"{RTC_TABLE}_swiss")
 
-    end_time = time.time()
-    execution_time = end_time - start_time
-    minutes, seconds = divmod(execution_time, 60)
-    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
+    timer.stop()
+
+
+if __name__ == "__main__":
+    run()

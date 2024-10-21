@@ -3,21 +3,13 @@ This script sends Zulip messages to a corresponding squads via Zulip bot, based 
 """
 
 import logging
-import time
 from datetime import datetime
 from urllib.parse import quote
 
 import zulip
 from psycopg2.extras import DictCursor
 
-from classes import Database, EnvVariables
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# timer for counting script time execution
-start_time = time.time()
-
-logging.info("-------------------------SCHEDULER IS RUNNING-------------------------")
+from config import Database, EnvVariables, Timer, setup_logging
 
 env_vars = EnvVariables()
 database = Database(env_vars)
@@ -45,7 +37,6 @@ def check_orphans(conn_orph, squad_name, stream_name, topic_name):
     cur_orph = conn_orph.cursor(cursor_factory=DictCursor)
     tables = ["open_prs", "open_prs_swiss"]
     for table in tables:
-        # here each query marked with zone marker (Public or Hybrid) for bring it into message
         if table == "open_prs":
             logging.info("Looking for orphaned PRs for %s in %s...", squad_name, table)
             query = f"""SELECT *, 'Public' as zone, 'orphan' as type FROM {table} WHERE "Squad" = '{squad_name}';"""
@@ -88,7 +79,6 @@ def check_outdated_docs(conn, squad_name, stream_name, topic_name):
     cur = conn.cursor(cursor_factory=DictCursor)
     tables = ["last_update_commit", "last_update_commit_swiss"]
     for table in tables:
-        # here each query marked with zone marker (Public or Hybrid) for bring it into message
         if table == "last_update_commit":
             logging.info("Checking %s table for %s...", table, squad_name)
             query = f"""SELECT *, 'Public' as zone, 'doc' as type FROM {table} WHERE "Squad" = %s;"""
@@ -193,9 +183,14 @@ def main():
     conn_orph.close()
 
 
-if __name__ == "__main__":
+def run():
+    timer = Timer()
+    timer.start()
+    setup_logging()
+    logging.info("-------------------------SCHEDULER IS RUNNING-------------------------")
     main()
-    end_time = time.time()
-    execution_time = end_time - start_time
-    minutes, seconds = divmod(execution_time, 60)
-    logging.info("Script executed in %s minutes %s seconds! Let's go drink some beer :)", int(minutes), int(seconds))
+    timer.stop()
+
+
+if __name__ == "__main__":
+    run()
