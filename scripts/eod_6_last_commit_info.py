@@ -176,7 +176,8 @@ def run():
         logging.info("Error has been occurred: %s", e)
         main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, env_vars.github_fallback_token)
         main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}"
-                                                                            f"-swiss", env_vars.github_fallback_token)
+                                                                                   f"-swiss", env_vars.
+             github_fallback_token)
         done = True
     if done:
         logging.info("Github operations successfully done!")
