@@ -102,7 +102,6 @@ def get_last_commit(org, conn, cur, doctype, string, table_name, rtc):
             shutil.rmtree(tmp_dir)
 
 
-
 def update_squad_and_title(conn, cur, table_name, rtc):
     logging.info("Updating squads and titles...")
     try:
@@ -170,14 +169,14 @@ def run():
     done = False
     try:
         main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, env_vars.github_token)
-        main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss",
-             env_vars.github_token)
+        main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}"
+                                                                                   f"-swiss", env_vars.github_token)
         done = True
     except Exception as e:
         logging.info("Error has been occurred: %s", e)
         main(GH_ORG_STR, COMMIT_TABLE, RTC_TABLE, GH_ORG_STR, env_vars.github_fallback_token)
-        main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}-swiss",
-             env_vars.github_fallback_token)
+        main(f"{GH_ORG_STR}-swiss", f"{COMMIT_TABLE}_swiss", f"{RTC_TABLE}_swiss", f"{GH_ORG_STR}"
+                                                                            f"-swiss", env_vars.github_fallback_token)
         done = True
     if done:
         logging.info("Github operations successfully done!")
