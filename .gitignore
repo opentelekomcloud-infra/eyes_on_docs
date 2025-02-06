@@ -5,5 +5,3 @@ __pycache__/
 *.pyd
 *.swp
 *.swo
-config/
-scripts/
