@@ -219,7 +219,8 @@ def parent_pr_changes_check(cur, conn, org, changes_tab):
                 parent_reviews = json.loads(parent_reviews_resp.content.decode())
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
-                    logging.info("No reviews found for PR %s in %s (404 error). Skipping.", parent_pr_number, repo_name)
+                    logging.info("No reviews found for PR %s in %s (404 error). Skipping.", parent_pr_number,
+                                 repo_name)
                     return False
             except requests.exceptions.RequestException as e:
                 logging.error("Error occurred while trying to get PR %s reviews: %s", parent_pr_number, e)

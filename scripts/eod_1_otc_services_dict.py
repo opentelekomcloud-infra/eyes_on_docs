@@ -136,7 +136,8 @@ def get_tech_repos(cur_csv, gitea_token, rtc_table):
     tech_repos = []
 
     try:
-        cur_csv.execute(f"SELECT DISTINCT \"Repository\" FROM {rtc_table} WHERE \"Env\" IN ('internal', 'hidden', 'public');")
+        cur_csv.execute(f"SELECT DISTINCT \"Repository\" FROM {rtc_table} WHERE \"Env\" IN ('internal', 'hidden',"
+                        f"'public');")
         exclude_repos = [row[0] for row in cur_csv.fetchall()]
 
     except Exception as e:
