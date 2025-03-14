@@ -167,7 +167,7 @@ def get_tech_repos(cur_csv, gitea_token, rtc_table):
             tech_repos.append(repo["name"])
 
         if page > max_pages:
-            logging.warning(f"Reached maximum page limit for docs")
+            logging.warning("Reached maximum page limit for docs")
             break
 
         link_header = repos_resp.headers.get("Link")
