@@ -40,7 +40,7 @@ def get_repos(cur, rtc):
     repos = []
 
     try:
-        cur.execute(f"SELECT DISTINCT \"Repository\" FROM {rtc} WHERE \"Env\" = 'public';")
+        cur.execute(f"SELECT DISTINCT \"Repository\" FROM {rtc} WHERE \"Env\" IN ('public', 'tech');")
         repos = [row[0] for row in cur.fetchall()]
         if not repos:
             logging.info("No repositories found.")
@@ -272,7 +272,7 @@ def update_squad_and_title(cur, conn, rtc, changes_tab):
             )
             cur.execute(
                 f"""UPDATE {changes_tab}
-                    SET "Squad" = 'Other'
+                    SET "Parent PR Status" = 'CHANGES REQUESTED'
                     WHERE {changes_tab}."Service Name" IN ('doc-exports', 'docs_on_docs', 'docsportal')
                     AND {changes_tab}.id = %s;""",
                 (row[0],)
