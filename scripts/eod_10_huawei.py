@@ -196,10 +196,10 @@ def get_review_comments_info(org, comments):
                 latest_comment_author = latest_comment["user"]["full_name"]
 
                 if latest_comment_author != reviewer:
-                    print(f"Latest comment in {pr_number} in {repo} for {review_id} made by Huawei colleague {latest_comment_author}")
+                    print(f"Latest comment in {pr_number} in {repo} for {review_id} by Huawei {latest_comment_author}")
                     huawei_comment = "Commented"
                 else:
-                    print(f"Latest comment in {pr_number} in {repo} for {review_id} made by review author {reviewer}")
+                    print(f"Latest comment in {pr_number} in {repo} for {review_id} by review author {reviewer}")
                     huawei_comment = "Not commented"
             comments_list.append({"pr_number": pr_number, "repo": repo, "pr_url": pr_url, "days_passed": days_passed,
                          "reviewer": reviewer, "pr_label": pr_label, "huawei_comment": huawei_comment})
@@ -214,9 +214,11 @@ def insert_analyzed_prs(conn, cur, huawei, analyzed_prs):
     try:
         for pr in analyzed_prs:
             cur.execute(
-                f'''INSERT INTO {huawei} ("PR Number", "Service Name", "PR URL", "Days passed", "Label", "Reviewer", "Huawei comment")
+                f'''INSERT INTO {huawei} ("PR Number", "Service Name", "PR URL", "Days passed", "Label", "Reviewer",
+                "Huawei comment")
                 VALUES (%s, %s, %s, %s, %s, %s, %s);''',
-                (pr["pr_number"], pr["repo"], pr["pr_url"], pr["days_passed"], pr["pr_label"], pr["reviewer"], pr["huawei_comment"])
+                (pr["pr_number"], pr["repo"], pr["pr_url"], pr["days_passed"], pr["pr_label"], pr["reviewer"],
+                 pr["huawei_comment"])
             )
         conn.commit()
         logging.info("Inserted %d analyzed PRs into %s", len(analyzed_prs), huawei)
@@ -285,7 +287,8 @@ def run():
     conn_csv.commit()
 
     main(conn_csv, cur_csv, org_string, rtc_table, changes_table, huawei_label_table)
-    main(conn_csv, cur_csv, f"{org_string}-swiss", f"{rtc_table}_swiss", f"{changes_table}_swiss", f"{huawei_label_table}_swiss")
+    main(conn_csv, cur_csv, f"{org_string}-swiss", f"{rtc_table}_swiss", f"{changes_table}_swiss",
+         f"{huawei_label_table}_swiss")
 
     if done:
         logging.info("Search successfully finish!")

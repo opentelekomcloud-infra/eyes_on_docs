@@ -52,7 +52,7 @@ class Database:
                 password=self.db_password
             )
         except psycopg2.Error as e:
-            logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
+            logging.error("Connecting to Postgres: an error occurred while trying to connect: %s", e)
             return None
 
 
