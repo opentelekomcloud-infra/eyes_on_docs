@@ -5,7 +5,8 @@ This script is an entry point for all other modules included in Eyes-on-Docs
 import argparse
 
 from scripts import (eod_1_otc_services_dict, eod_2_gitea_info, eod_3_github_info, eod_4_failed_zuul, eod_5_open_issues,
-                     eod_6_last_commit_info, eod_7_request_changes, eod_8_ecosystem_issues, eod_9_scheduler)
+                     eod_6_last_commit_info, eod_7_request_changes, eod_8_ecosystem_issues, eod_9_scheduler,
+                     eod_10_huawei)
 
 
 def main():
@@ -19,6 +20,7 @@ def main():
     parser.add_argument('--eod7', action='store_true', help='Request changes')
     parser.add_argument('--eod8', action='store_true', help='Ecosystem issues')
     parser.add_argument('--eod9', action='store_true', help='Scheduler')
+    parser.add_argument('--eod10', action='store_true', help='Huawei')
     args = parser.parse_args()
 
     if args.eod1:
@@ -39,6 +41,8 @@ def main():
         eod_8_ecosystem_issues.run()
     if args.eod9:
         eod_9_scheduler.run()
+    if args.eod10:
+        eod_10_huawei.run()
 
 
 if __name__ == "__main__":
