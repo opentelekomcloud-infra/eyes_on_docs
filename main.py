@@ -44,5 +44,6 @@ def main():
     if args.eod10:
         eod_10_huawei.run()
 
+
 if __name__ == "__main__":
     main()

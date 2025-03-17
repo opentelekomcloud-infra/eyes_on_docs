@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-from datetime import datetime
 
 import psycopg2
 import requests
@@ -41,8 +40,8 @@ def get_requested_prs(cur, changes):
     requested_prs = []
 
     try:
-        cur.execute(f'''SELECT DISTINCT "PR URL", "Days passed", "Reviewer" 
-                        FROM {changes} 
+        cur.execute(f'''SELECT DISTINCT "PR URL", "Days passed", "Reviewer"
+                        FROM {changes}
                         WHERE "Parent PR Status" = 'CHANGES REQUESTED' AND "Squad" NOT IN ('Huawei')
                         AND "Days passed" > 3;''')
         requested_prs = cur.fetchall()
@@ -149,10 +148,9 @@ def search_comments(org, analyzed_prs):
                 print(f"PR {pr_number} in {repo} has {comments_count} comments in review {review_id}")
             else:
                 print(f"PR {pr_number} in {repo} has {comments_count} comments in review {review_id}")
-                comments_count
             comments.append(
-            {"pr_number": pr_number, "repo": repo, "pr_url": pr_url, "days_passed": days_passed,
-             "pr_label": pr_label, "reviewer": reviewer, "review_id": review_id, "comments_count": comments_count})
+                {"pr_number": pr_number, "repo": repo, "pr_url": pr_url, "days_passed": days_passed,
+                 "pr_label": pr_label, "reviewer": reviewer, "review_id": review_id, "comments_count": comments_count})
 
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
@@ -202,7 +200,7 @@ def get_review_comments_info(org, comments):
                     print(f"Latest comment in {pr_number} in {repo} for {review_id} by review author {reviewer}")
                     huawei_comment = "Not commented"
             comments_list.append({"pr_number": pr_number, "repo": repo, "pr_url": pr_url, "days_passed": days_passed,
-                         "reviewer": reviewer, "pr_label": pr_label, "huawei_comment": huawei_comment})
+                                  "reviewer": reviewer, "pr_label": pr_label, "huawei_comment": huawei_comment})
 
         except requests.exceptions.RequestException as e:
             logging.error("Error occurred while trying to get PR %s reviews: %s", pr_number, e)
