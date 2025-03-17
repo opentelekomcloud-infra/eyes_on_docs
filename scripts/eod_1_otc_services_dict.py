@@ -4,6 +4,7 @@ service postgres tables, to match repo names, service full names and its squads
 """
 
 import base64
+import json
 import logging
 
 import psycopg2
@@ -13,9 +14,12 @@ import yaml
 from config import Database, EnvVariables, Timer, setup_logging
 
 BASE_URL = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
+GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
+session = requests.Session()
 
 env_vars = EnvVariables()
 database = Database(env_vars)
+gitea_token = env_vars.gitea_token
 
 
 def create_rtc_table(conn_csv, cur_csv, table_name):
@@ -128,6 +132,52 @@ def get_docs_info(base_dir, doc_dir):
     return all_data
 
 
+def get_tech_repos(cur_csv, gitea_token, rtc_table):
+    tech_repos = []
+
+    try:
+        cur_csv.execute(f"SELECT DISTINCT \"Repository\" FROM {rtc_table} WHERE \"Env\" IN ('internal', 'hidden',"
+                        f"'public');")
+        exclude_repos = [row[0] for row in cur_csv.fetchall()]
+
+    except Exception as e:
+        logging.error("Fetching exclude repos for internal services: %s", e)
+        return exclude_repos
+
+    max_pages = 50
+    page = 1
+
+    while True:
+        try:
+            repos_resp = session.get(f"{GITEA_API_ENDPOINT}/orgs/docs/repos?page={page}&limit=50&token={gitea_token}")
+            repos_resp.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logging.error("Get repos: an error occurred while trying to get repos: %s", e)
+            break
+
+        try:
+            repos_dict = json.loads(repos_resp.content.decode())
+        except json.JSONDecodeError as e:
+            logging.error("JSON decode: an error occurred while trying to decode JSON: %s", e)
+            break
+
+        for repo in repos_dict:
+            if repo["archived"] or repo["name"] in exclude_repos:
+                continue
+            tech_repos.append(repo["name"])
+
+        if page > max_pages:
+            logging.warning("Reached maximum page limit for docs")
+            break
+
+        link_header = repos_resp.headers.get("Link")
+        if link_header is None or "rel=\"next\"" not in link_header:
+            break
+        page += 1
+    logging.info("%s repos have been processed", len(tech_repos))
+    return tech_repos
+
+
 def insert_services_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
         logging.error("Unexpected data type: %s, value: %s", type(item), item)
@@ -141,6 +191,25 @@ def insert_services_data(item, conn_csv, cur_csv, table_name):
     category = item.get("service_category")
     squad = item.get("squad")
     senv = item.get("environment")
+
+    cur_csv.execute(insert_query, (repository, title, category, squad, senv))
+
+    conn_csv.commit()
+
+
+def insert_tech_repos_data(conn_csv, cur_csv, tech_repo, table_name):
+    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Env")
+                      VALUES (%s, %s, %s, %s, %s);"""
+
+    repository = tech_repo
+    title = tech_repo
+    if tech_repo in ("doc-exports", "doc-convertor", "docsportal"):
+        category = "Docs"
+        squad = "Huawei"
+    else:
+        category = "Tech"
+        squad = "Tech"
+    senv = "tech"
 
     cur_csv.execute(insert_query, (repository, title, category, squad, senv))
 
@@ -192,7 +261,7 @@ def insert_docs_data(item, conn_csv, cur_csv, table_name):
     conn_csv.commit()
 
 
-def add_obsolete_services(conn_csv, cur_csv):
+def add_obsolete_services(conn_csv, cur_csv, rtc_table):
     data_to_insert = [
         {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category":
             "Other", "service_type": "cdn", "squad": "Other", "environment": "hidden"},
@@ -201,7 +270,7 @@ def add_obsolete_services(conn_csv, cur_csv):
     ]
 
     for item in data_to_insert:
-        insert_services_data(item, conn_csv, cur_csv, "repo_title_category")
+        insert_services_data(item, conn_csv, cur_csv, rtc_table)
 
 
 def copy_rtc(cur_csv, cursors, conns, rtctable):
@@ -267,6 +336,9 @@ def main(base_dir, rtctable, doctable, styring_path):
     for doc_data in all_doc_data:
         insert_docs_data(doc_data, conn_csv, cur_csv, doctable)
 
+    tech_repos = get_tech_repos(cur_csv, gitea_token, rtctable)
+    for tech_repo in tech_repos:
+        insert_tech_repos_data(conn_csv, cur_csv, tech_repo, rtctable)
     copy_rtc(cur_csv, cursors, conns, rtctable)
 
     for conn in conns:
@@ -293,7 +365,8 @@ def run():
     main(BASE_DIR_SWISS, f"{BASE_RTC_TABLE}_swiss", f"{BASE_DOC_TABLE}_swiss", STYRING_URL_SWISS)
     conn_csv = database.connect_to_db(env_vars.db_csv)
     cur_csv = conn_csv.cursor()
-    add_obsolete_services(conn_csv, cur_csv)
+    add_obsolete_services(conn_csv, cur_csv, BASE_RTC_TABLE)
+
     conn_csv.commit()
     conn_csv.close()
 
