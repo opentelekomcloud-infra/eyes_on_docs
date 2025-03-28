@@ -127,12 +127,12 @@ def check_rst(conn, squad_name, stream_name, topic_name):
     for table in tables:
         logging.info("Checking %s table for %s...", table, squad_name)
 
-        query_rst = f"""SELECT *, 'Public' as zone, 'rst' as type FROM {table} 
+        query_rst = f"""SELECT *, 'Public' as zone, 'rst' as type FROM {table}
                         WHERE "Squad" = %s AND "Days passed" > 3 AND "If .rst" = 'Yes';"""
         cur.execute(query_rst, (squad_name,))
         results_with_rst = cur.fetchall()
 
-        query_no_rst = f"""SELECT *, 'Public' as zone, 'rst' as type FROM {table} 
+        query_no_rst = f"""SELECT *, 'Public' as zone, 'rst' as type FROM {table}
                             WHERE "Days passed" > 3 AND "If .rst" = 'No';"""
         cur.execute(query_no_rst)
         results_without_rst = cur.fetchall()
@@ -157,16 +157,16 @@ def check_files_lines(conn, squad_name, stream_name, topic_name):
         if table == "huawei_files_lines":
             logging.info("Checking %s table for %s...", table, squad_name)
             query = f"""SELECT *, 'Public' as zone, 'files_lines' as type FROM {table} WHERE "Squad" = %s AND (
-                    ("Lines count" < 1000 AND "Days passed" > 5) OR  
-                    ("Lines count" BETWEEN 1000 AND 5000 AND "Days passed" > 10) OR  
+                    ("Lines count" < 1000 AND "Days passed" > 5) OR
+                    ("Lines count" BETWEEN 1000 AND 5000 AND "Days passed" > 10) OR
                     ("Lines count" > 5000 AND "Days passed" > 15));"""
             cur.execute(query, (squad_name,))
             results = cur.fetchall()
         elif table == "huawei_files_lines_swiss":
             logging.info("Checking %s table for %s...", table, squad_name)
             query = f"""SELECT *, 'Hybrid' as zone, 'files_lines' as type FROM {table} WHERE "Squad" = %s AND (
-                    ("Lines count" < 1000 AND "Days passed" > 5) OR  
-                    ("Lines count" BETWEEN 1000 AND 5000 AND "Days passed" > 10) OR  
+                    ("Lines count" < 1000 AND "Days passed" > 5) OR
+                    ("Lines count" BETWEEN 1000 AND 5000 AND "Days passed" > 10) OR
                     ("Lines count" > 5000 AND "Days passed" > 15));"""
             cur.execute(query, (squad_name,))
             results = cur.fetchall()

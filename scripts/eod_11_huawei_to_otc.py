@@ -115,7 +115,7 @@ def check_rst(org, prs):
         while True:
             try:
                 rst_rsp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/files?page={page}",
-                                       headers=headers)
+                                      headers=headers)
                 rst_rsp.raise_for_status()
                 rst_data = rst_rsp.json()
                 has_rst = any(file["filename"].endswith(".rst") for file in rst_data)

@@ -51,5 +51,6 @@ def main():
     if args.eod12:
         eod_12_huawei_files_lines.run()
 
+
 if __name__ == "__main__":
     main()
