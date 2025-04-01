@@ -141,9 +141,6 @@ def check_rst(conn, squad_name, stream_name, topic_name):
             send_zulip_notification(row, env_vars.api_key, stream_name, topic_name)
 
         for row in results_without_rst:
-            # print(squad_streams.get("eco"))  # Посмотрим, что есть в "eco"
-            # print(squad_streams.get("eco", {}).keys())  # Выведем все доступные ключи
-
             eco_stream = squad_streams["eco"]["stream"]
             eco_topic = squad_streams["eco"]["topic"]
             send_zulip_notification(row, env_vars.api_key, eco_stream, eco_topic)
