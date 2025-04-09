@@ -1,3 +1,7 @@
+"""
+This script gathers info regarding PRs with no assignee and checks whether there is an .rst file
+"""
+
 import json
 import logging
 from datetime import datetime
@@ -24,7 +28,8 @@ def create_prs_table(conn, cur, table_name):
             "Squad" VARCHAR(255),
             "PR URL" VARCHAR(255),
             "Days passed" INT,
-            "If .rst" VARCHAR
+            "If .rst" VARCHAR,
+            UNIQUE("PR Number", "Service Name")
             );'''
         )
         conn.commit()
@@ -141,11 +146,9 @@ def check_rst(org, prs):
 
                 link_header = rst_rsp.headers.get("Link")
                 if link_header is None or 'rel="next"' not in link_header:
-                    # print(f"Repo {repo}, PR {pr_number}: NO NEXT PAGE.")
                     break
 
                 page += 1
-                # print(f"PR {pr_number}: Fetching page {page}")
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
                     logging.info("No PRs found in repo %s (404 error). Skipping.", repo)
@@ -162,9 +165,11 @@ def insert_data_postgres(prs_tab, pr, conn, cur):
     pr_url = pr.get("url")
     days_passed = pr.get("days_passed")
     if_rst = pr.get("if_rst")
+
     cur.execute(f"""
         INSERT INTO {prs_tab} ("PR Number", "Service Name", "Squad", "PR URL", "Days passed", "If .rst")
-        VALUES (%s, %s, %s, %s, %s, %s);
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT ("PR Number", "Service Name") DO NOTHING;
         """, (pr_number, repo, '', pr_url, days_passed, if_rst))
     conn.commit()
 

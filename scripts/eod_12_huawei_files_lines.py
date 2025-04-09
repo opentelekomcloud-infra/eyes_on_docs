@@ -1,3 +1,7 @@
+"""
+This script counts files and lines of code in PRs from Huawei to OTC
+"""
+
 import logging
 import os
 from datetime import datetime

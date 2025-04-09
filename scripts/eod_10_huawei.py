@@ -1,3 +1,7 @@
+"""
+This script checks labels and comments in PRs from OTC to Huawei
+"""
+
 import json
 import logging
 import re
