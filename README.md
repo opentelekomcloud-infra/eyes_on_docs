@@ -17,6 +17,9 @@ Scripts gathering HC3.0 PRs, issues and docs info from Github and Gitea. Scripts
 9) **eod_9_scheduler.py:** this script checking postgres for orphans, unattended issues and outdated docs, and send 
    notifications to Zulip, via OTC Bot. Runs as cronjob (see 'system-config' repo)
 Postgres database names, table names, Gitea & Github organization names and access tokens are store in environment variables.
+10) **eod-10-huawei.py** this script gather info about PRs which doesn't have reviewrs from Huawei side for more than 3 days
+11) **eod-11-huawei-to-otc.py** script for gather info about PRs which doesn't have reviewer from OTC side for more than 3 days
+12) **eod-12-huawei-files-lines.py** this script groups PRs based on files or lines of code count
 
 Notification schedule
 ---------------------
@@ -24,10 +27,13 @@ Notification schedule
 We have 3 types of alerts: Orphaned PRs Count, Unattended Issues and Outdated Documentation Release Dates.\
 **Orphaned PRs Count** checks comes every day.\
 **Unattended Issues** appears after issues remain unassigned for 7 days.\
-**Outdated Documentation Release Date** has more co,plex schedule:
-First alert triggers once 3 weeks prior 365 days threshold; second alert triggers once 2 weeks prior, third alert will trigger 1 week prior reaching 365 days threshold. After breaching 1-year threshold, notifications will be delivered daily.
+**Outdated Documentation Release Date** has more complex schedule:
+First alert triggers once 3 weeks prior 365 days threshold; second alert triggers once 2 weeks prior, third alert will trigger 1 week prior reaching 365 days threshold. After breaching 1-year threshold, notifications will be delivered daily.\
+**Huawei** Alerts appears after 3 days without reviewer from Huawei side.\
+**From Huawei to OTC** Alerts appears after 3 days without reviewer from OTC side.\
+**Huawei Files Content** Here we have 3 groups of PRs: small, which is less than 100 files or 1000 lines of code, medium, which is between 500 and 1000 files or 1000 and 5000 lines of code, and big, which is above 500 files or 5000 lines of code. For small group alert starts coming after 5 days, for medium - after 10 days, and 15 days for big group.\
 
-All notifications are delivering to a corresponding channel at 11:00 in a morning. 
+All notifications are delivering to a corresponding channel at 10:00 in a morning. 
 
 Notification anatomy
 --------------------
