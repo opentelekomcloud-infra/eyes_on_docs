@@ -182,14 +182,14 @@ def check_files_lines(conn, squad_name, stream_name, topic_name):
         logging.info("Checking %s table for %s...", table, squad_name)
 
         query = f"""
-            SELECT *, 
-                CASE 
+            SELECT *,
+                CASE
                     WHEN "Lines count" < 1000 AND "Days passed" > 5 THEN 5
                     WHEN "Lines count" BETWEEN 1000 AND 5000 AND "Days passed" > 10 THEN 10
                     WHEN "Lines count" > 5000 AND "Days passed" > 15 THEN 15
-                END AS days_range,  
+                END AS days_range,
                 '{zone}' as zone, 'files_lines' as type
-            FROM {table} 
+            FROM {table}
             WHERE "Squad" = %s;
         """
 
