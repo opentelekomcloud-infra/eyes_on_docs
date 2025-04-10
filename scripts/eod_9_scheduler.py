@@ -285,8 +285,8 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         pr_url = row[4]
         message = f":ghost:   **Huawei PRs Alert**  :ghost:\n\nPlease check label and comments here!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-servi " \
-                  f"ce.com/d/c80c0d2f-703e-4906-8678-43f5956e65b2/huawei-to-otc%3a-rst?orgId=1&var-squad_filter= " \
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-servi" \
+                  f"ce.com/d/c80c0d2f-703e-4906-8678-43f5956e65b2/huawei-to-otc%3a-rst?orgId=1&var-squad_filter=" \
                   f"{encoded_squad}&var-zone={zone_table}\n\n---------------------------------------------------------"
     elif row["type"] == "files_lines":
         squad_name = row[3]
@@ -298,8 +298,8 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         message = f":holyhandgrenade:   **Reviewing PRs content Alert**  :holyhandgrenade:\n\n Time to check content " \
                   f"in this PR!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-servic " \
-                  f"e.com/d/b04be79a-d0ec-49ff-aeac-a2eba053937c/files-and-lines-content?orgId=1&var-squad_filter= " \
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-servic" \
+                  f"e.com/d/b04be79a-d0ec-49ff-aeac-a2eba053937c/files-and-lines-content?orgId=1&var-squad_filter=" \
                   f"{encoded_squad}var-zone={zone_table}\n\n---------------------------------------------------------"
 
     result = client.send_message({
