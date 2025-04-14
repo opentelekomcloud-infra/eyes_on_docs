@@ -20,7 +20,7 @@ def create_prs_table(conn, cur, table_name):
         cur.execute(
             f'''CREATE TABLE IF NOT EXISTS {table_name} (
             id SERIAL PRIMARY KEY,
-            "PR Number" VARCHAR(255),
+            "PR Number" INT,
             "Service Name" VARCHAR(255),
             "Squad" VARCHAR(255),
             "PR URL" VARCHAR(255),

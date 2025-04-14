@@ -31,7 +31,7 @@ def create_prs_table(conn, cur, table_name):
             "Squad" VARCHAR(255),
             "PR URL" VARCHAR(255),
             "Days passed" INT,
-            "Files count" VARCHAR,
+            "Files count" INT,
             "Lines count" INT
             );'''
         )
