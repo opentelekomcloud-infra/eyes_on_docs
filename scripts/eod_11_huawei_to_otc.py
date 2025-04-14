@@ -109,13 +109,15 @@ def check_rst(org, prs):
     headers = {
         "Authorization": f"token {env_vars.gitea_token}"
     }
-    if_rst = []
+    results = []
+
     for pr in prs:
         repo = pr.get("repo")
         pr_number = pr.get("number")
         pr_url = pr.get("url")
         days_passed = pr.get("days_passed")
         page = 1
+        has_rst_in_any_page = False
 
         while True:
             try:
@@ -123,26 +125,11 @@ def check_rst(org, prs):
                                       headers=headers)
                 rst_rsp.raise_for_status()
                 rst_data = rst_rsp.json()
-                has_rst = any(file["filename"].endswith(".rst") for file in rst_data)
 
-                if has_rst:
-                    print(f"PR #{pr_number} has .rst files")
-                    if_rst.append({
-                        "number": pr_number,
-                        "repo": repo,
-                        "url": pr_url,
-                        "days_passed": days_passed,
-                        "if_rst": "Yes"
-                    })
-                else:
-                    print(f"PR #{pr_number} HAS NOT .rst files")
-                    if_rst.append({
-                        "number": pr_number,
-                        "repo": repo,
-                        "url": pr_url,
-                        "days_passed": days_passed,
-                        "if_rst": "No"
-                    })
+                if any(file["filename"].endswith(".rst") for file in rst_data):
+                    has_rst_in_any_page = True
+                    print(f"PR #{pr_number} has .rst files on page {page}")
+                    break
 
                 link_header = rst_rsp.headers.get("Link")
                 if link_header is None or 'rel="next"' not in link_header:
@@ -152,11 +139,33 @@ def check_rst(org, prs):
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
                     logging.info("No PRs found in repo %s (404 error). Skipping.", repo)
+                    break
             except requests.exceptions.RequestException as e:
                 logging.error("Error occurred:", e)
+                break
             except json.JSONDecodeError as e:
                 logging.error("Error occurred while trying to decode JSON: %s", e)
-    return if_rst
+                break
+
+        if has_rst_in_any_page:
+            results.append({
+                "number": pr_number,
+                "repo": repo,
+                "url": pr_url,
+                "days_passed": days_passed,
+                "if_rst": "Yes"
+            })
+        else:
+            print(f"PR #{pr_number} has NO .rst files across all pages")
+            results.append({
+                "number": pr_number,
+                "repo": repo,
+                "url": pr_url,
+                "days_passed": days_passed,
+                "if_rst": "No"
+            })
+
+    return results
 
 
 def insert_data_postgres(prs_tab, pr, conn, cur):
