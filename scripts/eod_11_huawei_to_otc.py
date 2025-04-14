@@ -119,7 +119,6 @@ def check_rst(org, prs):
         page = 1
         has_rst_in_any_page = False
 
-        # Process all pages for this PR before determining if it has RST files
         while True:
             try:
                 rst_rsp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/files?page={page}",
@@ -127,14 +126,11 @@ def check_rst(org, prs):
                 rst_rsp.raise_for_status()
                 rst_data = rst_rsp.json()
 
-                # Check if current page has RST files
                 if any(file["filename"].endswith(".rst") for file in rst_data):
                     has_rst_in_any_page = True
                     print(f"PR #{pr_number} has .rst files on page {page}")
-                    # We found an RST file, no need to check more pages
                     break
 
-                # Check if there are more pages
                 link_header = rst_rsp.headers.get("Link")
                 if link_header is None or 'rel="next"' not in link_header:
                     break
@@ -151,7 +147,6 @@ def check_rst(org, prs):
                 logging.error("Error occurred while trying to decode JSON: %s", e)
                 break
 
-        # After checking all pages, add a single result for this PR
         if has_rst_in_any_page:
             results.append({
                 "number": pr_number,
