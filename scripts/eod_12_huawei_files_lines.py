@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime
-from typing import List, Dict
+from typing import Dict, List
 
 import aiohttp  # type: ignore
 import psycopg2
