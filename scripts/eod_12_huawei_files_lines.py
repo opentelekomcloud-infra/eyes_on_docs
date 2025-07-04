@@ -1,12 +1,13 @@
 """ This script uses async logic for faster evaluation"""
 
 import asyncio
-import aiohttp
 import logging
 import os
 from datetime import datetime
+
 from typing import List, Dict
 
+import aiohttp
 import psycopg2
 import psycopg2.extras
 
