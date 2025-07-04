@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 from typing import List, Dict
 
-import aiohttp # type: ignore
+import aiohttp  # type: ignore
 import psycopg2
 import psycopg2.extras
 
