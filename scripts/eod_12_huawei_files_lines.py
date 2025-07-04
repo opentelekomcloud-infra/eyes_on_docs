@@ -217,7 +217,6 @@ def batch_insert_to_db(conn, cur, data: List[Dict], table: str, columns: List[st
         values.append(tuple(item.get(col, None) for col in columns))
 
     escaped_columns = [f'"{col}"' for col in columns]
-    placeholders = ', '.join(['%s'] * len(columns))
     query = f"INSERT INTO {table} ({', '.join(escaped_columns)}) VALUES %s"
 
     try:
