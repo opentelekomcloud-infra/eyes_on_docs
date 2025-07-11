@@ -14,7 +14,6 @@ import yaml
 from config import Database, EnvVariables, Timer, setup_logging
 
 BASE_URL = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
-GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
 
 env_vars = EnvVariables()
@@ -79,7 +78,7 @@ def get_pretty_category_names(base_dir, category_dir):
     return category_mapping
 
 
-def get_service_categories(base_dir, category_dir, services_dir):
+def get_service_categories(base_dir, category_dir, services_dir, target_cloud=None):
     pretty_names = get_pretty_category_names(base_dir, category_dir)
 
     response = requests.get(f"{BASE_URL}{services_dir}", timeout=10)
@@ -97,6 +96,27 @@ def get_service_categories(base_dir, category_dir, services_dir):
             file_content = base64.b64decode(file_content_base64).decode('utf-8')
 
             data_dict = yaml.safe_load(file_content)
+
+            cloud_envs = data_dict.get("cloud_environments", [])
+
+            if target_cloud:
+                available_clouds = [env.get('name') for env in cloud_envs]
+                if target_cloud not in available_clouds:
+                    continue
+
+                target_env = next((env for env in cloud_envs if env.get('name') == target_cloud), None)
+                if target_env:
+                    visibility = target_env.get('visibility', 'public')
+                else:
+                    continue
+            else:
+                if cloud_envs:
+                    visibility = cloud_envs[0].get('visibility', 'public')
+                else:
+                    visibility = 'public'
+
+            data_dict['target_visibility'] = visibility
+
             technical_name = data_dict.get('service_category')
             data_dict['service_category'] = pretty_names.get(technical_name, technical_name)
             teams = data_dict.get('teams', [])
@@ -132,7 +152,10 @@ def get_docs_info(base_dir, doc_dir):
     return all_data
 
 
-def get_tech_repos(cur_csv, gitea_token, rtc_table):
+def get_tech_repos(cur_csv, rtc_table):
+    headers = {
+        "Authorization": f"token {env_vars.gitea_token}"
+    }
     tech_repos = []
 
     try:
@@ -147,9 +170,13 @@ def get_tech_repos(cur_csv, gitea_token, rtc_table):
     max_pages = 50
     page = 1
 
+    if rtc_table == "repo_title_category":
+        org = "docs"
+    else:
+        org = "docs-swiss"
     while True:
         try:
-            repos_resp = session.get(f"{GITEA_API_ENDPOINT}/orgs/docs/repos?page={page}&limit=50&token={gitea_token}")
+            repos_resp = session.get(f"{BASE_URL}/orgs/{org}/repos?page={page}&limit=50", headers=headers)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
             logging.error("Get repos: an error occurred while trying to get repos: %s", e)
@@ -190,10 +217,10 @@ def insert_services_data(item, conn_csv, cur_csv, table_name):
     title = item.get("service_title")
     category = item.get("service_category")
     squad = item.get("squad")
-    senv = item.get("environment")
+
+    senv = item.get("target_visibility")
 
     cur_csv.execute(insert_query, (repository, title, category, squad, senv))
-
     conn_csv.commit()
 
 
@@ -212,7 +239,6 @@ def insert_tech_repos_data(conn_csv, cur_csv, tech_repo, table_name):
     senv = "tech"
 
     cur_csv.execute(insert_query, (repository, title, category, squad, senv))
-
     conn_csv.commit()
 
 
@@ -264,9 +290,7 @@ def insert_docs_data(item, conn_csv, cur_csv, table_name):
 def add_obsolete_services(conn_csv, cur_csv, rtc_table):
     data_to_insert = [
         {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category":
-            "Other", "service_type": "cdn", "squad": "Other", "environment": "hidden"},
-        {"service_uri": "data-admin-service", "service_title": "Data Admin Service", "service_category": "Other",
-         "service_type": "das", "squad": "Other", "environment": "hidden"}
+            "Other", "service_type": "cdn", "squad": "Other", "target_visibility": "hidden"}
     ]
 
     for item in data_to_insert:
@@ -300,7 +324,7 @@ def copy_rtc(cur_csv, cursors, conns, rtctable):
             conn.rollback()
 
 
-def main(base_dir, rtctable, doctable, styring_path):
+def main(base_dir, rtctable, doctable, styring_path, target_cloud=None):
     services_dir = f"{base_dir}otc_metadata/data/services"
     category_dir = f"{base_dir}otc_metadata/data/service_categories"
     doc_dir = f"{base_dir}otc_metadata/data/documents"
@@ -324,7 +348,7 @@ def main(base_dir, rtctable, doctable, styring_path):
         cur.execute(f"DROP TABLE IF EXISTS {rtctable}, {doctable}")
         conn.commit()
 
-    all_data = get_service_categories(base_dir, category_dir, services_dir)
+    all_data = get_service_categories(base_dir, category_dir, services_dir, target_cloud)
     create_rtc_table(conn_csv, cur_csv, rtctable)
     for data in all_data:
         insert_services_data(data, conn_csv, cur_csv, rtctable)
@@ -336,7 +360,8 @@ def main(base_dir, rtctable, doctable, styring_path):
     for doc_data in all_doc_data:
         insert_docs_data(doc_data, conn_csv, cur_csv, doctable)
 
-    tech_repos = get_tech_repos(cur_csv, gitea_token, rtctable)
+    tech_repos = get_tech_repos(cur_csv, rtctable)
+    print("TECH REPOS________________________________________", rtctable, tech_repos)
     for tech_repo in tech_repos:
         insert_tech_repos_data(conn_csv, cur_csv, tech_repo, rtctable)
     copy_rtc(cur_csv, cursors, conns, rtctable)
@@ -354,15 +379,17 @@ def run():
 
     logging.info("-------------------------OTC SERVICES DICT SCRIPT IS RUNNING-------------------------")
 
-    BASE_DIR_SWISS = "/repos/infra/otc-metadata-swiss/contents/"
-    BASE_DIR_REGULAR = "/repos/infra/otc-metadata/contents/"
+    BASE_DIR_UNIFIED = "/repos/infra/otc-metadata-rework/contents/"
     STYRING_URL_REGULAR = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/data.yaml?token="
     STYRING_URL_SWISS = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-swiss/data.yaml?token="
     BASE_RTC_TABLE = "repo_title_category"
     BASE_DOC_TABLE = "doc_types"
 
-    main(BASE_DIR_REGULAR, BASE_RTC_TABLE, BASE_DOC_TABLE, STYRING_URL_REGULAR)
-    main(BASE_DIR_SWISS, f"{BASE_RTC_TABLE}_swiss", f"{BASE_DOC_TABLE}_swiss", STYRING_URL_SWISS)
+    main(BASE_DIR_UNIFIED, BASE_RTC_TABLE, BASE_DOC_TABLE, STYRING_URL_REGULAR, target_cloud="eu_de")
+
+    main(BASE_DIR_UNIFIED, f"{BASE_RTC_TABLE}_swiss", f"{BASE_DOC_TABLE}_swiss", STYRING_URL_SWISS,
+         target_cloud="swiss")
+
     conn_csv = database.connect_to_db(env_vars.db_csv)
     cur_csv = conn_csv.cursor()
     add_obsolete_services(conn_csv, cur_csv, BASE_RTC_TABLE)
