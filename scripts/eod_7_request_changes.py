@@ -40,7 +40,7 @@ def get_repos(cur, rtc):
     repos = []
 
     try:
-        cur.execute(f"SELECT DISTINCT \"Repository\" FROM {rtc} WHERE \"Env\" IN ('public', 'tech');")
+        cur.execute(f"""SELECT DISTINCT "Repository" FROM {rtc} WHERE "Env" IN ('public', 'tech');""")
         repos = [row[0] for row in cur.fetchall()]
         if not repos:
             logging.info("No repositories found.")
@@ -51,12 +51,15 @@ def get_repos(cur, rtc):
 
 
 def get_pr_number(org, repo):
+    headers = {
+        "Authorization": f"token {env_vars.gitea_token}"
+    }
     page = 1
     pr_details = []
     while True:
         try:
-            repo_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=open&page={page}"
-                                    f"&limit=1000&token={env_vars.gitea_token}")
+            repo_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=open&page={page}",
+                                    headers=headers)
             repo_resp.raise_for_status()
             pull_requests = json.loads(repo_resp.content.decode())
         except requests.exceptions.HTTPError as e:
@@ -91,10 +94,13 @@ def convert_iso_to_datetime(iso_str):
 
 
 def process_pr_reviews(org, repo, pr_number, changes_tab, conn_csv, cur_csv):
+    headers = {
+        "Authorization": f"token {env_vars.gitea_token}"
+    }
     reviews = []
     try:
-        reviews_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/reviews?token="
-                                   f"{env_vars.gitea_token}")
+        reviews_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/reviews?token=",
+                                   headers=headers)
         reviews_resp.raise_for_status()
         reviews = json.loads(reviews_resp.content.decode())
     except requests.exceptions.HTTPError as e:
@@ -113,14 +119,16 @@ def process_pr_reviews(org, repo, pr_number, changes_tab, conn_csv, cur_csv):
         last_review_date_str = final_review["updated_at"]
         last_review_date = convert_iso_to_datetime(last_review_date_str)
         reviewer_login = final_review['user']['login']
-
         get_last_commit(org, repo, pr_number, reviewer_login, last_review_date, changes_tab, conn_csv, cur_csv)
 
 
 def get_last_commit(org, repo, pr_number, reviewer_login, last_review_date, changes_tab, conn_csv, cur_csv):
+    headers = {
+        "Authorization": f"token {env_vars.gitea_token}"
+    }
     try:
-        commits_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/commits?token="
-                                   f"{env_vars.gitea_token}")
+        commits_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/commits?token=",
+                                   headers=headers)
         commits_resp.raise_for_status()
         commits = json.loads(commits_resp.content.decode())
     except requests.exceptions.RequestException as e:
@@ -141,13 +149,14 @@ def get_last_commit(org, repo, pr_number, reviewer_login, last_review_date, chan
         elif commit_author != reviewer_login and commit_date > last_review_date:
             insert_data_postgres(org, repo, pr_number, conn_csv, cur_csv, commit_date, "our_side_problem")
 
-    return None
-
 
 def insert_data_postgres(org, repo, pr_number, conn, cur, activity_date, changes_tab):
+    headers = {
+        "Authorization": f"token {env_vars.gitea_token}"
+    }
     try:
         filtered_reviews_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/"
-                                            f"reviews?token={env_vars.gitea_token}")
+                                            f"reviews", headers=headers)
         filtered_reviews_resp.raise_for_status()
         filtered_reviews = json.loads(filtered_reviews_resp.content.decode())
     except requests.exceptions.RequestException as e:
@@ -176,64 +185,70 @@ def insert_data_postgres(org, repo, pr_number, conn, cur, activity_date, changes
 
 
 def parent_pr_changes_check(cur, conn, org, changes_tab):
+    headers = {
+        "Authorization": f"token {env_vars.gitea_token}"
+    }
     try:
-        cur.execute(f"SELECT \"PR Number\", \"Service Name\" FROM {changes_tab}")
+        cur.execute(f"""SELECT "PR Number", "Service Name" FROM {changes_tab}""")
         records = cur.fetchall()
-        repo_pr_dict = {record[1]: record[0] for record in records}
     except Exception as e:
         logging.error("Fetching PR numbers: %s", e)
         return
 
-    for repo, pr_number in repo_pr_dict.items():
+    for pr_number, repo in records:
         try:
-            pr_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}?token="
-                                  f"{env_vars.gitea_token}")
+            pr_resp = session.get(
+                f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}", headers=headers)
             pr_resp.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 logging.info("No repository or pull requests found in %s (404 error). Skipping.", repo)
-                return False
+                continue
             else:
                 logging.error("Error checking pull requests in %s: %s", repo, e)
-                return False
+                continue
         except requests.exceptions.RequestException as e:
             logging.error("Error occurred while trying to get PR %s in repo %s: %s", pr_number, repo, e)
-            break
+            continue
 
         try:
             parent_pr = json.loads(pr_resp.content.decode())
         except json.JSONDecodeError as e:
             logging.error("Error occurred while trying to decode JSON: %s", e)
-            break
+            continue
 
-        body = parent_pr["body"]
+        body = parent_pr.get("body", "")
         if body.startswith("This is an automatically created Pull Request"):
-            match_repo = re.search(r"(?<=/).+(?=#)", str(body))
+            match_repo = re.search(r"(?<=\/).+(?=#)", body)
+            if not match_repo:
+                continue
             repo_name = match_repo.group(0)
             parent_pr_number = extract_number_from_body(body)
-            parent_reviews = []
+
             try:
-                parent_reviews_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo_name}/pulls/"
-                                                  f"{parent_pr_number}/reviews?token={env_vars.gitea_token}")
+                parent_reviews_resp = session.get(
+                    f"{gitea_api_endpoint}/repos/{org}/{repo_name}/pulls/"
+                    f"{parent_pr_number}/reviews?token={env_vars.gitea_token}"
+                )
                 parent_reviews_resp.raise_for_status()
                 parent_reviews = json.loads(parent_reviews_resp.content.decode())
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
-                    logging.info("No reviews found for PR %s in %s (404 error). Skipping.", parent_pr_number,
-                                 repo_name)
-                    return False
-            except requests.exceptions.RequestException as e:
-                logging.error("Error occurred while trying to get PR %s reviews: %s", parent_pr_number, e)
-                return
-            except json.JSONDecodeError as e:
+                    logging.info("No reviews found for PR %s in %s (404 error). Skipping.", parent_pr_number, repo_name)
+                    continue
+                else:
+                    logging.error("Error occurred while trying to get PR %s reviews: %s", parent_pr_number, e)
+                    continue
+            except (requests.exceptions.RequestException, json.JSONDecodeError) as e:
                 logging.error("Error occurred while trying to decode JSON: %s", e)
-                return
+                continue
 
             final_review = parent_reviews[-1] if parent_reviews else None
             if final_review and final_review['state'] == "REQUEST_CHANGES":
                 try:
                     cur.execute(f"""
-                        UPDATE {changes_tab} SET "Parent PR Status" = 'CHANGES REQUESTED'
+                        UPDATE {changes_tab}
+                        SET "Parent PR Status" = 'CHANGES REQUESTED'
                         WHERE "PR Number" = %s AND "Service Name" = %s;
                     """, (pr_number, repo))
                     conn.commit()
@@ -244,16 +259,15 @@ def parent_pr_changes_check(cur, conn, org, changes_tab):
 
 def extract_number_from_body(text):
     try:
-        match = re.search(r"#\d+", str(text))
+        match = re.search(r"\d+", str(text))
         if match:
-            return int(match.group()[1:])
+            return int(match.group())
     except ValueError as e:
         logging.error("An error occurred while converting match group to int: %s", e)
         return None
     except re.error as e:
         logging.error("An error occurred while searching text: %s", e)
         return None
-    return None
 
 
 def update_squad_and_title(cur, conn, rtc, changes_tab):
