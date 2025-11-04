@@ -346,11 +346,13 @@ def main(base_dir, base_rtctable, base_doctable):
         if env_name == "swiss":
             rtctable = f"{base_rtctable}_swiss"
             doctable = f"{base_doctable}_swiss"
-            styring_url = f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-swiss/data.yaml?token={env_vars.gitea_token}"
+            styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-"
+                           f"swiss/data.yaml?token={env_vars.gitea_token}")
         else:
             rtctable = f"{base_rtctable}_{env_name}" if env_name != "eu_de" else base_rtctable
             doctable = f"{base_doctable}_{env_name}" if env_name != "eu_de" else base_doctable
-            styring_url = f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/data.yaml?token={env_vars.gitea_token}"
+            styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/da"
+                           f"ta.yaml?token={env_vars.gitea_token}")
 
         logging.info(f"Processing environment: {env_name}, table: {rtctable}")
 
