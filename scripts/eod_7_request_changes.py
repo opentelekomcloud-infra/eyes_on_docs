@@ -226,9 +226,12 @@ def parent_pr_changes_check(cur, conn, org, changes_tab):
             parent_pr_number = extract_number_from_body(body)
 
             try:
+                headers = {
+                    "Authorization": f"token {env_vars.gitea_token}"
+                }
                 parent_reviews_resp = session.get(
-                    f"{gitea_api_endpoint}/repos/{org}/{repo_name}/pulls/"
-                    f"{parent_pr_number}/reviews?token={env_vars.gitea_token}"
+                    f"{gitea_api_endpoint}/repos/{org}/{repo_name}/pulls/{parent_pr_number}/reviews",
+                    headers=headers
                 )
                 parent_reviews_resp.raise_for_status()
                 parent_reviews = json.loads(parent_reviews_resp.content.decode())
