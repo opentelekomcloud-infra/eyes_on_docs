@@ -9,7 +9,7 @@ import time
 import psycopg2
 import requests
 
-GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
+GITEA_API_ENDPOINT = os.getenv("BASE_GITEA_URL")
 session = requests.Session()
 
 
