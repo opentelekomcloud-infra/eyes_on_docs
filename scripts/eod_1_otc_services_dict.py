@@ -224,7 +224,7 @@ def insert_environments_table(conn_csv, cur_csv, env_names):
         table_suffix = f"_{env_name}"
         try:
             cur_csv.execute(
-                f"""INSERT INTO environments ("Env Name", "Table Suffix") VALUES (%s, %s);""",
+                """INSERT INTO environments ("Env Name", "Table Suffix") VALUES (%s, %s);""",
                 (env_name, table_suffix)
             )
         except Exception as e:
