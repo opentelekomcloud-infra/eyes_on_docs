@@ -149,7 +149,7 @@ def get_docs_info(base_dir, doc_dir):
     return all_data
 
 
-def get_tech_repos(cur_csv, rtc_table):
+def get_tech_repos(cur_csv, rtc_table, env_name):
     headers = {
         "Authorization": f"token {env_vars.gitea_token}"
     }
@@ -167,10 +167,10 @@ def get_tech_repos(cur_csv, rtc_table):
     max_pages = 50
     page = 1
 
-    if rtc_table == "repo_title_category":
+    if env_name == "eu_de":
         org = "docs"
     else:
-        org = "docs-swiss"
+        org = f"docs-{env_name}"
     while True:
         try:
             repos_resp = session.get(f"{BASE_GITEA_URL}/orgs/{org}/repos?page={page}&limit=50", headers=headers)
@@ -222,8 +222,8 @@ def insert_services_data(item, conn_csv, cur_csv, table_name):
 
 
 def insert_tech_repos_data(conn_csv, cur_csv, tech_repo, table_name):
-    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Env")
-                      VALUES (%s, %s, %s, %s, %s);"""
+    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Env", "Service Type")
+                      VALUES (%s, %s, %s, %s, %s, %s);"""
 
     repository = tech_repo
     title = tech_repo
@@ -234,13 +234,17 @@ def insert_tech_repos_data(conn_csv, cur_csv, tech_repo, table_name):
         category = "Tech"
         squad = "Tech"
     senv = "tech"
+    stype = "tech"
 
-    cur_csv.execute(insert_query, (repository, title, category, squad, senv))
+    cur_csv.execute(insert_query, (repository, title, category, squad, senv, stype))
     conn_csv.commit()
 
 
 def get_squad_description(styring_url):
-    response = requests.get(styring_url, timeout=10)
+    headers = {
+        "Authorization": f"token {env_vars.gitea_token}"
+    }
+    response = requests.get(styring_url, headers=headers, timeout=10)
     response.raise_for_status()
 
     file_content_base64 = response.json()['content']
@@ -282,16 +286,6 @@ def insert_docs_data(item, conn_csv, cur_csv, table_name):
 
     cur_csv.execute(insert_query, (stype, title, dtype, link))
     conn_csv.commit()
-
-
-def add_obsolete_services(conn_csv, cur_csv, rtc_table):
-    data_to_insert = [
-        {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category":
-            "Other", "service_type": "cdn", "squad": "Other", "target_visibility": "hidden"}
-    ]
-
-    for item in data_to_insert:
-        insert_services_data(item, conn_csv, cur_csv, rtc_table)
 
 
 def copy_rtc(cur_csv, cursors, conns, rtctable):
@@ -343,16 +337,15 @@ def main(base_dir, base_rtctable, base_doctable):
     logging.info(f"Found environments: {list(env_data.keys())}")
 
     for env_name, services_list in env_data.items():
-        if env_name == "swiss":
-            rtctable = f"{base_rtctable}_swiss"
-            doctable = f"{base_doctable}_swiss"
-            styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-"
-                           f"swiss/data.yaml?token={env_vars.gitea_token}")
+        rtctable = f"{base_rtctable}_{env_name}"
+        doctable = f"{base_doctable}_{env_name}"
+
+        if env_name == "eu_de":
+            styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/"
+                           f"opentelekomcloud-docs/data.yaml")
         else:
-            rtctable = f"{base_rtctable}_{env_name}" if env_name != "eu_de" else base_rtctable
-            doctable = f"{base_doctable}_{env_name}" if env_name != "eu_de" else base_doctable
-            styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/da"
-                           f"ta.yaml?token={env_vars.gitea_token}")
+            styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/"
+                           f"opentelekomcloud-docs-{env_name}/data.yaml")
 
         logging.info(f"Processing environment: {env_name}, table: {rtctable}")
 
@@ -374,7 +367,7 @@ def main(base_dir, base_rtctable, base_doctable):
             for doc_data in all_doc_data:
                 insert_docs_data(doc_data, conn_csv, cur_csv, doctable)
 
-        tech_repos = get_tech_repos(cur_csv, rtctable)
+        tech_repos = get_tech_repos(cur_csv, rtctable, env_name)
         for tech_repo in tech_repos:
             insert_tech_repos_data(conn_csv, cur_csv, tech_repo, rtctable)
 
@@ -401,8 +394,6 @@ def run():
     main(BASE_DIR_UNIFIED, BASE_RTC_TABLE, BASE_DOC_TABLE)
 
     conn_csv = database.connect_to_db(env_vars.db_csv)
-    cur_csv = conn_csv.cursor()
-    add_obsolete_services(conn_csv, cur_csv, BASE_RTC_TABLE)
 
     conn_csv.commit()
     conn_csv.close()
