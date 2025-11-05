@@ -21,6 +21,22 @@ gitea_token = env_vars.gitea_token
 BASE_GITEA_URL = env_vars.base_gitea_url
 
 
+def create_environments_table(conn_csv, cur_csv):
+    logging.info("Creating environments table...")
+    try:
+        cur_csv.execute(
+            '''CREATE TABLE IF NOT EXISTS environments (
+            id SERIAL PRIMARY KEY,
+            "Env Name" VARCHAR(50) UNIQUE,
+            "Table Suffix" VARCHAR(50),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );'''
+        )
+        conn_csv.commit()
+    except Exception as e:
+        logging.error("Environments table: an error occurred while trying to create a table: %s", e)
+
+
 def create_rtc_table(conn_csv, cur_csv, table_name):
     logging.info("Creating new service table %s...", table_name)
     try:
@@ -202,6 +218,20 @@ def get_tech_repos(cur_csv, rtc_table, env_name):
     return tech_repos
 
 
+def insert_environments_table(conn_csv, cur_csv, env_names):
+    logging.info("Inserting environments into table...")
+    for env_name in env_names:
+        table_suffix = f"_{env_name}"
+        try:
+            cur_csv.execute(
+                f"""INSERT INTO environments ("Env Name", "Table Suffix") VALUES (%s, %s);""",
+                (env_name, table_suffix)
+            )
+        except Exception as e:
+            logging.error("Error inserting into environments table: %s", e)
+    conn_csv.commit()
+
+
 def insert_services_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
         logging.error("Unexpected data type: %s, value: %s", type(item), item)
@@ -332,9 +362,16 @@ def main(base_dir, base_rtctable, base_doctable):
     conns = [conn_orph, conn_zuul]
     cursors = [cur_orph, cur_zuul]
 
+    cur_csv.execute("DROP TABLE IF EXISTS environments")
+    conn_csv.commit()
+
+    create_environments_table(conn_csv, cur_csv)
+
     env_data = get_service_categories(base_dir, category_dir, services_dir)
 
     logging.info(f"Found environments: {list(env_data.keys())}")
+
+    insert_environments_table(conn_csv, cur_csv, env_data.keys())
 
     for env_name, services_list in env_data.items():
         rtctable = f"{base_rtctable}_{env_name}"
