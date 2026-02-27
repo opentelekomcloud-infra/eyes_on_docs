@@ -29,7 +29,7 @@ def create_environments_table(conn_csv, cur_csv):
             id SERIAL PRIMARY KEY,
             "Env Name" VARCHAR(50) UNIQUE,
             "Table Suffix" VARCHAR(50),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            "Org Suffix" VARCHAR(50)
             );'''
         )
         conn_csv.commit()
@@ -221,11 +221,17 @@ def get_tech_repos(cur_csv, rtc_table, env_name):
 def insert_environments_table(conn_csv, cur_csv, env_names):
     logging.info("Inserting environments into table...")
     for env_name in env_names:
-        table_suffix = f"_{env_name}"
+        if env_name == "eu_de":
+            table_suffix = ""
+            org_suffix = ""
+        else:
+            table_suffix = f"_{env_name}"
+            org_suffix = f"-{env_name}"
+
         try:
             cur_csv.execute(
-                """INSERT INTO environments ("Env Name", "Table Suffix") VALUES (%s, %s);""",
-                (env_name, table_suffix)
+                """INSERT INTO environments ("Env Name", "Table Suffix", "Org Suffix") VALUES (%s, %s, %s);""",
+                (env_name, table_suffix, org_suffix)
             )
         except Exception as e:
             logging.error("Error inserting into environments table: %s", e)
