@@ -29,7 +29,8 @@ def create_environments_table(conn_csv, cur_csv):
             id SERIAL PRIMARY KEY,
             "Env Name" VARCHAR(50) UNIQUE,
             "Table Suffix" VARCHAR(50),
-            "Org Suffix" VARCHAR(50)
+            "Internal Org" VARCHAR(100),
+            "Public Org" VARCHAR(100)
             );'''
         )
         conn_csv.commit()
@@ -165,7 +166,7 @@ def get_docs_info(base_dir, doc_dir):
     return all_data
 
 
-def get_tech_repos(cur_csv, rtc_table, env_name):
+def get_tech_repos(cur_csv, rtc_table, public_org):
     headers = {
         "Authorization": f"token {env_vars.gitea_token}"
     }
@@ -183,13 +184,9 @@ def get_tech_repos(cur_csv, rtc_table, env_name):
     max_pages = 50
     page = 1
 
-    if env_name == "eu_de":
-        org = "docs"
-    else:
-        org = f"docs-{env_name}"
     while True:
         try:
-            repos_resp = session.get(f"{BASE_GITEA_URL}/orgs/{org}/repos?page={page}&limit=50", headers=headers)
+            repos_resp = session.get(f"{BASE_GITEA_URL}/orgs/{public_org}/repos?page={page}&limit=50", headers=headers)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
             logging.error("Get repos: an error occurred while trying to get repos: %s", e)
@@ -221,17 +218,20 @@ def get_tech_repos(cur_csv, rtc_table, env_name):
 def insert_environments_table(conn_csv, cur_csv, env_names):
     logging.info("Inserting environments into table...")
     for env_name in env_names:
+        table_suffix = "" if env_name == "eu_de" else f"_{env_name}"
+
         if env_name == "eu_de":
-            table_suffix = ""
-            org_suffix = ""
+            internal_org = "opentelekomcloud-docs"
+            public_org = "docs"
         else:
-            table_suffix = f"_{env_name}"
-            org_suffix = f"-{env_name}"
+            internal_org = f"opentelekomcloud-docs-{env_name}"
+            public_org = f"docs-{env_name}"
 
         try:
             cur_csv.execute(
-                """INSERT INTO environments ("Env Name", "Table Suffix", "Org Suffix") VALUES (%s, %s, %s);""",
-                (env_name, table_suffix, org_suffix)
+                """INSERT INTO environments ("Env Name", "Table Suffix", "Internal Org", "Public Org") 
+                   VALUES (%s, %s, %s, %s);""",
+                (env_name, table_suffix, internal_org, public_org)
             )
         except Exception as e:
             logging.error("Error inserting into environments table: %s", e)
@@ -288,7 +288,7 @@ def get_squad_description(styring_url):
 
     data = yaml.safe_load(file_content)
 
-    return {item['slug']: item['description'] for item in data['teams']}
+    return {item['slug']: item.get('description', item['slug']) for item in data['teams']}
 
 
 def update_squad_title(conn, styring_url, table_name):
@@ -379,18 +379,22 @@ def main(base_dir, base_rtctable, base_doctable):
 
     insert_environments_table(conn_csv, cur_csv, env_data.keys())
 
-    for env_name, services_list in env_data.items():
-        rtctable = f"{base_rtctable}_{env_name}"
-        doctable = f"{base_doctable}_{env_name}"
+    cur_csv.execute('SELECT "Env Name", "Table Suffix", "Internal Org", "Public Org" FROM environments;')
+    environments = cur_csv.fetchall()
 
-        if env_name == "eu_de":
-            styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/"
-                           f"opentelekomcloud-docs/data.yaml")
-        else:
-            styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/"
-                           f"opentelekomcloud-docs-{env_name}/data.yaml")
+    for env in environments:
+        env_name = env[0]
+        table_suffix = env[1] if env[1] else ""
+        internal_org = env[2]
+        public_org = env[3]
 
-        logging.info(f"Processing environment: {env_name}, table: {rtctable}")
+        rtctable = f"{base_rtctable}{table_suffix}"
+        doctable = f"{base_doctable}{table_suffix}"
+
+        styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/"
+                       f"{internal_org}/data.yaml")
+
+        logging.info(f"Processing environment: {env_name}, table: {rtctable}, orgs: {internal_org}/{public_org}")
 
         cur_csv.execute(f"DROP TABLE IF EXISTS {rtctable}, {doctable}")
         conn_csv.commit()
@@ -399,8 +403,10 @@ def main(base_dir, base_rtctable, base_doctable):
             conn.commit()
 
         create_rtc_table(conn_csv, cur_csv, rtctable)
-        for service_data in services_list:
-            insert_services_data(service_data, conn_csv, cur_csv, rtctable)
+
+        if env_name in env_data:
+            for service_data in env_data[env_name]:
+                insert_services_data(service_data, conn_csv, cur_csv, rtctable)
 
         update_squad_title(conn_csv, styring_url, rtctable)
 
@@ -410,7 +416,7 @@ def main(base_dir, base_rtctable, base_doctable):
             for doc_data in all_doc_data:
                 insert_docs_data(doc_data, conn_csv, cur_csv, doctable)
 
-        tech_repos = get_tech_repos(cur_csv, rtctable, env_name)
+        tech_repos = get_tech_repos(cur_csv, rtctable, public_org)
         for tech_repo in tech_repos:
             insert_tech_repos_data(conn_csv, cur_csv, tech_repo, rtctable)
 
