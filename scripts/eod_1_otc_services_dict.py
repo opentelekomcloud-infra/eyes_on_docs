@@ -229,7 +229,7 @@ def insert_environments_table(conn_csv, cur_csv, env_names):
 
         try:
             cur_csv.execute(
-                """INSERT INTO environments ("Env Name", "Table Suffix", "Internal Org", "Public Org") 
+                """INSERT INTO environments ("Env Name", "Table Suffix", "Internal Org", "Public Org")
                    VALUES (%s, %s, %s, %s);""",
                 (env_name, table_suffix, internal_org, public_org)
             )
