@@ -166,7 +166,42 @@ def get_docs_info(base_dir, doc_dir):
     return all_data
 
 
-def get_tech_repos(cur_csv, rtc_table, public_org):
+def get_cloud_environments_info(base_dir):
+    cloud_env_dir = f"{base_dir}otc_metadata/data/cloud_environments"
+
+    response = requests.get(f"{BASE_GITEA_URL}{cloud_env_dir}", timeout=10)
+    response.raise_for_status()
+    all_files = [item['path'] for item in response.json() if item['type'] == 'file']
+
+    env_info = []
+
+    for file_path in all_files:
+        if file_path.endswith('.yaml'):
+            response = requests.get(f"{BASE_GITEA_URL}{base_dir}{file_path}", timeout=10)
+            response.raise_for_status()
+
+            file_content_base64 = response.json()['content']
+            file_content = base64.b64decode(file_content_base64).decode('utf-8')
+
+            data_dict = yaml.safe_load(file_content)
+
+            env_name = data_dict.get('name')
+            table_suffix = data_dict.get('table_suffix', '')
+            internal_org = data_dict.get('internal_org')
+            public_org = data_dict.get('public_org')
+
+            if env_name and internal_org and public_org:
+                env_info.append({
+                    'name': env_name,
+                    'table_suffix': table_suffix if table_suffix else '',
+                    'internal_org': internal_org,
+                    'public_org': public_org
+                })
+
+    return env_info
+
+
+def get_tech_repos(cur_csv, rtc_table, internal_org):
     headers = {
         "Authorization": f"token {env_vars.gitea_token}"
     }
@@ -186,7 +221,7 @@ def get_tech_repos(cur_csv, rtc_table, public_org):
 
     while True:
         try:
-            repos_resp = session.get(f"{BASE_GITEA_URL}/orgs/{public_org}/repos?page={page}&limit=50", headers=headers)
+            repos_resp = session.get(f"{BASE_GITEA_URL}/orgs/{internal_org}/repos?page={page}&limit=50", headers=headers)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
             logging.error("Get repos: an error occurred while trying to get repos: %s", e)
@@ -215,23 +250,14 @@ def get_tech_repos(cur_csv, rtc_table, public_org):
     return tech_repos
 
 
-def insert_environments_table(conn_csv, cur_csv, env_names):
+def insert_environments_table(conn_csv, cur_csv, env_info_list):
     logging.info("Inserting environments into table...")
-    for env_name in env_names:
-        table_suffix = "" if env_name == "eu_de" else f"_{env_name}"
-
-        if env_name == "eu_de":
-            internal_org = "opentelekomcloud-docs"
-            public_org = "docs"
-        else:
-            internal_org = f"opentelekomcloud-docs-{env_name}"
-            public_org = f"docs-{env_name}"
-
+    for env_info in env_info_list:
         try:
             cur_csv.execute(
-                """INSERT INTO environments ("Env Name", "Table Suffix", "Internal Org", "Public Org")
+                """INSERT INTO environments ("Env Name", "Table Suffix", "Internal Org", "Public Org") 
                    VALUES (%s, %s, %s, %s);""",
-                (env_name, table_suffix, internal_org, public_org)
+                (env_info['name'], env_info['table_suffix'], env_info['internal_org'], env_info['public_org'])
             )
         except Exception as e:
             logging.error("Error inserting into environments table: %s", e)
@@ -373,11 +399,12 @@ def main(base_dir, base_rtctable, base_doctable):
 
     create_environments_table(conn_csv, cur_csv)
 
+    env_info_list = get_cloud_environments_info(base_dir)
+    logging.info(f"Found environments from cloud_environments: {[e['name'] for e in env_info_list]}")
+
+    insert_environments_table(conn_csv, cur_csv, env_info_list)
+
     env_data = get_service_categories(base_dir, category_dir, services_dir)
-
-    logging.info(f"Found environments: {list(env_data.keys())}")
-
-    insert_environments_table(conn_csv, cur_csv, env_data.keys())
 
     cur_csv.execute('SELECT "Env Name", "Table Suffix", "Internal Org", "Public Org" FROM environments;')
     environments = cur_csv.fetchall()
@@ -392,7 +419,7 @@ def main(base_dir, base_rtctable, base_doctable):
         doctable = f"{base_doctable}{table_suffix}"
 
         styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/"
-                       f"{internal_org}/data.yaml")
+                       f"{public_org}/data.yaml")
 
         logging.info(f"Processing environment: {env_name}, table: {rtctable}, orgs: {internal_org}/{public_org}")
 
@@ -416,7 +443,7 @@ def main(base_dir, base_rtctable, base_doctable):
             for doc_data in all_doc_data:
                 insert_docs_data(doc_data, conn_csv, cur_csv, doctable)
 
-        tech_repos = get_tech_repos(cur_csv, rtctable, public_org)
+        tech_repos = get_tech_repos(cur_csv, rtctable, internal_org)
         for tech_repo in tech_repos:
             insert_tech_repos_data(conn_csv, cur_csv, tech_repo, rtctable)
 
