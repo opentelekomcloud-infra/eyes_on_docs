@@ -221,7 +221,8 @@ def get_tech_repos(cur_csv, rtc_table, internal_org):
 
     while True:
         try:
-            repos_resp = session.get(f"{BASE_GITEA_URL}/orgs/{internal_org}/repos?page={page}&limit=50", headers=headers)
+            repos_resp = session.get(f"{BASE_GITEA_URL}/orgs/{internal_org}/repos?page={page}&limit=50",
+                                     headers=headers)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
             logging.error("Get repos: an error occurred while trying to get repos: %s", e)
