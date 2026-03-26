@@ -13,13 +13,29 @@ import yaml
 
 from config import Database, EnvVariables, Timer, setup_logging
 
-BASE_URL = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
-GITEA_API_ENDPOINT = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
 
 env_vars = EnvVariables()
 database = Database(env_vars)
 gitea_token = env_vars.gitea_token
+BASE_GITEA_URL = env_vars.base_gitea_url
+
+
+def create_environments_table(conn_csv, cur_csv):
+    logging.info("Creating environments table...")
+    try:
+        cur_csv.execute(
+            '''CREATE TABLE IF NOT EXISTS environments (
+            id SERIAL PRIMARY KEY,
+            "Env Name" VARCHAR(50) UNIQUE,
+            "Table Suffix" VARCHAR(50),
+            "Internal Org" VARCHAR(100),
+            "Public Org" VARCHAR(100)
+            );'''
+        )
+        conn_csv.commit()
+    except Exception as e:
+        logging.error("Environments table: an error occurred while trying to create a table: %s", e)
 
 
 def create_rtc_table(conn_csv, cur_csv, table_name):
@@ -32,7 +48,8 @@ def create_rtc_table(conn_csv, cur_csv, table_name):
             "Title" VARCHAR(255),
             "Category" VARCHAR(255),
             "Squad" VARCHAR(255),
-            "Env" VARCHAR(255)
+            "Env" VARCHAR(255),
+            "Service Type" VARCHAR(255)
             );'''
         )
         conn_csv.commit()
@@ -59,7 +76,7 @@ def create_doc_table(conn_csv, cur_csv, table_name):
 
 
 def get_pretty_category_names(base_dir, category_dir):
-    response = requests.get(f"{BASE_URL}{category_dir}", timeout=10)
+    response = requests.get(f"{BASE_GITEA_URL}{category_dir}", timeout=10)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -67,7 +84,7 @@ def get_pretty_category_names(base_dir, category_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10)
+            response = requests.get(f"{BASE_GITEA_URL}{base_dir}{file_path}", timeout=10)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -82,37 +99,54 @@ def get_pretty_category_names(base_dir, category_dir):
 def get_service_categories(base_dir, category_dir, services_dir):
     pretty_names = get_pretty_category_names(base_dir, category_dir)
 
-    response = requests.get(f"{BASE_URL}{services_dir}", timeout=10)
+    response = requests.get(f"{BASE_GITEA_URL}{services_dir}", timeout=10)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
-    all_data = []
+    env_data = {}
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10)
+            response = requests.get(f"{BASE_GITEA_URL}{base_dir}{file_path}", timeout=10)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
             file_content = base64.b64decode(file_content_base64).decode('utf-8')
 
             data_dict = yaml.safe_load(file_content)
-            technical_name = data_dict.get('service_category')
-            data_dict['service_category'] = pretty_names.get(technical_name, technical_name)
-            teams = data_dict.get('teams', [])
-            if teams:
-                squad_name = teams[0].get('name', '')
-                data_dict['squad'] = squad_name
-            else:
-                data_dict['squad'] = ''
 
-            all_data.append(data_dict)
+            cloud_envs = data_dict.get("cloud_environments", [])
 
-    return all_data
+            for env in cloud_envs:
+                env_name = env.get('name')
+                visibility = env.get('visibility', 'public')
+
+                if not env_name:
+                    continue
+
+                service_data = data_dict.copy()
+                service_data['target_visibility'] = visibility
+                service_data['env'] = env_name
+
+                technical_name = service_data.get('service_category')
+                service_data['service_category'] = pretty_names.get(technical_name, technical_name)
+
+                teams = service_data.get('teams', [])
+                if teams:
+                    squad_name = teams[0].get('name', '')
+                    service_data['squad'] = squad_name
+                else:
+                    service_data['squad'] = ''
+
+                if env_name not in env_data:
+                    env_data[env_name] = []
+                env_data[env_name].append(service_data)
+
+    return env_data
 
 
 def get_docs_info(base_dir, doc_dir):
-    response = requests.get(f"{BASE_URL}{doc_dir}", timeout=10)
+    response = requests.get(f"{BASE_GITEA_URL}{doc_dir}", timeout=10)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -120,7 +154,7 @@ def get_docs_info(base_dir, doc_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_URL}{base_dir}{file_path}", timeout=10)
+            response = requests.get(f"{BASE_GITEA_URL}{base_dir}{file_path}", timeout=10)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
@@ -132,7 +166,45 @@ def get_docs_info(base_dir, doc_dir):
     return all_data
 
 
-def get_tech_repos(cur_csv, gitea_token, rtc_table):
+def get_cloud_environments_info(base_dir):
+    cloud_env_dir = f"{base_dir}otc_metadata/data/cloud_environments"
+
+    response = requests.get(f"{BASE_GITEA_URL}{cloud_env_dir}", timeout=10)
+    response.raise_for_status()
+    all_files = [item['path'] for item in response.json() if item['type'] == 'file']
+
+    env_info = []
+
+    for file_path in all_files:
+        if file_path.endswith('.yaml'):
+            response = requests.get(f"{BASE_GITEA_URL}{base_dir}{file_path}", timeout=10)
+            response.raise_for_status()
+
+            file_content_base64 = response.json()['content']
+            file_content = base64.b64decode(file_content_base64).decode('utf-8')
+
+            data_dict = yaml.safe_load(file_content)
+
+            env_name = data_dict.get('name')
+            table_suffix = data_dict.get('table_suffix', '')
+            internal_org = data_dict.get('internal_org')
+            public_org = data_dict.get('public_org')
+
+            if env_name and internal_org and public_org:
+                env_info.append({
+                    'name': env_name,
+                    'table_suffix': table_suffix if table_suffix else '',
+                    'internal_org': internal_org,
+                    'public_org': public_org
+                })
+
+    return env_info
+
+
+def get_tech_repos(cur_csv, rtc_table, internal_org):
+    headers = {
+        "Authorization": f"token {env_vars.gitea_token}"
+    }
     tech_repos = []
 
     try:
@@ -149,7 +221,8 @@ def get_tech_repos(cur_csv, gitea_token, rtc_table):
 
     while True:
         try:
-            repos_resp = session.get(f"{GITEA_API_ENDPOINT}/orgs/docs/repos?page={page}&limit=50&token={gitea_token}")
+            repos_resp = session.get(f"{BASE_GITEA_URL}/orgs/{internal_org}/repos?page={page}&limit=50",
+                                     headers=headers)
             repos_resp.raise_for_status()
         except requests.exceptions.RequestException as e:
             logging.error("Get repos: an error occurred while trying to get repos: %s", e)
@@ -178,28 +251,42 @@ def get_tech_repos(cur_csv, gitea_token, rtc_table):
     return tech_repos
 
 
+def insert_environments_table(conn_csv, cur_csv, env_info_list):
+    logging.info("Inserting environments into table...")
+    for env_info in env_info_list:
+        try:
+            cur_csv.execute(
+                """INSERT INTO environments ("Env Name", "Table Suffix", "Internal Org", "Public Org")
+                   VALUES (%s, %s, %s, %s);""",
+                (env_info['name'], env_info['table_suffix'], env_info['internal_org'], env_info['public_org'])
+            )
+        except Exception as e:
+            logging.error("Error inserting into environments table: %s", e)
+    conn_csv.commit()
+
+
 def insert_services_data(item, conn_csv, cur_csv, table_name):
     if not isinstance(item, dict):
         logging.error("Unexpected data type: %s, value: %s", type(item), item)
         return
 
-    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Env")
-                      VALUES (%s, %s, %s, %s, %s);"""
+    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Env", "Service Type")
+                      VALUES (%s, %s, %s, %s, %s, %s);"""
 
     repository = item.get("service_uri")
     title = item.get("service_title")
     category = item.get("service_category")
     squad = item.get("squad")
-    senv = item.get("environment")
+    senv = item.get("target_visibility")
+    stype = item.get("service_type")
 
-    cur_csv.execute(insert_query, (repository, title, category, squad, senv))
-
+    cur_csv.execute(insert_query, (repository, title, category, squad, senv, stype))
     conn_csv.commit()
 
 
 def insert_tech_repos_data(conn_csv, cur_csv, tech_repo, table_name):
-    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Env")
-                      VALUES (%s, %s, %s, %s, %s);"""
+    insert_query = f"""INSERT INTO {table_name} ("Repository", "Title", "Category", "Squad", "Env", "Service Type")
+                      VALUES (%s, %s, %s, %s, %s, %s);"""
 
     repository = tech_repo
     title = tech_repo
@@ -210,14 +297,17 @@ def insert_tech_repos_data(conn_csv, cur_csv, tech_repo, table_name):
         category = "Tech"
         squad = "Tech"
     senv = "tech"
+    stype = "tech"
 
-    cur_csv.execute(insert_query, (repository, title, category, squad, senv))
-
+    cur_csv.execute(insert_query, (repository, title, category, squad, senv, stype))
     conn_csv.commit()
 
 
 def get_squad_description(styring_url):
-    response = requests.get(styring_url, timeout=10)
+    headers = {
+        "Authorization": f"token {env_vars.gitea_token}"
+    }
+    response = requests.get(styring_url, headers=headers, timeout=10)
     response.raise_for_status()
 
     file_content_base64 = response.json()['content']
@@ -225,7 +315,7 @@ def get_squad_description(styring_url):
 
     data = yaml.safe_load(file_content)
 
-    return {item['slug']: item['description'] for item in data['teams']}
+    return {item['slug']: item.get('description', item['slug']) for item in data['teams']}
 
 
 def update_squad_title(conn, styring_url, table_name):
@@ -261,18 +351,6 @@ def insert_docs_data(item, conn_csv, cur_csv, table_name):
     conn_csv.commit()
 
 
-def add_obsolete_services(conn_csv, cur_csv, rtc_table):
-    data_to_insert = [
-        {"service_uri": "content-delivery-network", "service_title": "Content Delivery Network", "service_category":
-            "Other", "service_type": "cdn", "squad": "Other", "environment": "hidden"},
-        {"service_uri": "data-admin-service", "service_title": "Data Admin Service", "service_category": "Other",
-         "service_type": "das", "squad": "Other", "environment": "hidden"}
-    ]
-
-    for item in data_to_insert:
-        insert_services_data(item, conn_csv, cur_csv, rtc_table)
-
-
 def copy_rtc(cur_csv, cursors, conns, rtctable):
     logging.info("Start copy %s to other DBs...", rtctable)
     try:
@@ -300,11 +378,10 @@ def copy_rtc(cur_csv, cursors, conns, rtctable):
             conn.rollback()
 
 
-def main(base_dir, rtctable, doctable, styring_path):
+def main(base_dir, base_rtctable, base_doctable):
     services_dir = f"{base_dir}otc_metadata/data/services"
     category_dir = f"{base_dir}otc_metadata/data/service_categories"
     doc_dir = f"{base_dir}otc_metadata/data/documents"
-    styring_url = f"{BASE_URL}{styring_path}{env_vars.gitea_token}"
 
     conn_orph = database.connect_to_db(env_vars.db_orph)
     cur_orph = conn_orph.cursor()
@@ -318,28 +395,62 @@ def main(base_dir, rtctable, doctable, styring_path):
     conns = [conn_orph, conn_zuul]
     cursors = [cur_orph, cur_zuul]
 
-    cur_csv.execute(f"DROP TABLE IF EXISTS {rtctable}, {doctable}")
+    cur_csv.execute("DROP TABLE IF EXISTS environments")
     conn_csv.commit()
-    for conn, cur in zip(conns, cursors):
-        cur.execute(f"DROP TABLE IF EXISTS {rtctable}, {doctable}")
-        conn.commit()
 
-    all_data = get_service_categories(base_dir, category_dir, services_dir)
-    create_rtc_table(conn_csv, cur_csv, rtctable)
-    for data in all_data:
-        insert_services_data(data, conn_csv, cur_csv, rtctable)
+    create_environments_table(conn_csv, cur_csv)
 
-    update_squad_title(conn_csv, styring_url, rtctable)
+    env_info_list = get_cloud_environments_info(base_dir)
+    logging.info(f"Found environments from cloud_environments: {[e['name'] for e in env_info_list]}")
 
-    create_doc_table(conn_csv, cur_csv, doctable)
-    all_doc_data = get_docs_info(base_dir, doc_dir)
-    for doc_data in all_doc_data:
-        insert_docs_data(doc_data, conn_csv, cur_csv, doctable)
+    insert_environments_table(conn_csv, cur_csv, env_info_list)
 
-    tech_repos = get_tech_repos(cur_csv, gitea_token, rtctable)
-    for tech_repo in tech_repos:
-        insert_tech_repos_data(conn_csv, cur_csv, tech_repo, rtctable)
-    copy_rtc(cur_csv, cursors, conns, rtctable)
+    env_data = get_service_categories(base_dir, category_dir, services_dir)
+
+    cur_csv.execute('SELECT "Env Name", "Table Suffix", "Internal Org", "Public Org" FROM environments;')
+    environments = cur_csv.fetchall()
+
+    for env in environments:
+        env_name = env[0]
+        table_suffix = env[1] if env[1] else ""
+        internal_org = env[2]
+        public_org = env[3]
+
+        rtctable = f"{base_rtctable}{table_suffix}"
+        doctable = f"{base_doctable}{table_suffix}"
+
+        styring_url = (f"{BASE_GITEA_URL}/repos/infra/gitstyring/contents/data/github/orgs/"
+                       f"{public_org}/data.yaml")
+
+        logging.info(f"Processing environment: {env_name}, table: {rtctable}, orgs: {internal_org}/{public_org}")
+
+        cur_csv.execute(f"DROP TABLE IF EXISTS {rtctable}, {doctable}")
+        conn_csv.commit()
+        for conn, cur in zip(conns, cursors):
+            cur.execute(f"DROP TABLE IF EXISTS {rtctable}, {doctable}")
+            conn.commit()
+
+        create_rtc_table(conn_csv, cur_csv, rtctable)
+
+        if env_name in env_data:
+            for service_data in env_data[env_name]:
+                insert_services_data(service_data, conn_csv, cur_csv, rtctable)
+
+        update_squad_title(conn_csv, styring_url, rtctable)
+
+        if env_name == list(env_data.keys())[0]:
+            create_doc_table(conn_csv, cur_csv, doctable)
+            all_doc_data = get_docs_info(base_dir, doc_dir)
+            for doc_data in all_doc_data:
+                insert_docs_data(doc_data, conn_csv, cur_csv, doctable)
+
+        tech_repos = get_tech_repos(cur_csv, rtctable, internal_org)
+        for tech_repo in tech_repos:
+            insert_tech_repos_data(conn_csv, cur_csv, tech_repo, rtctable)
+
+        copy_rtc(cur_csv, cursors, conns, rtctable)
+
+        logging.info(f"Completed processing for environment: {env_name}")
 
     for conn in conns:
         conn.close()
@@ -351,21 +462,15 @@ def run():
     timer.start()
 
     setup_logging()
-
     logging.info("-------------------------OTC SERVICES DICT SCRIPT IS RUNNING-------------------------")
 
-    BASE_DIR_SWISS = "/repos/infra/otc-metadata-swiss/contents/"
-    BASE_DIR_REGULAR = "/repos/infra/otc-metadata/contents/"
-    STYRING_URL_REGULAR = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs/data.yaml?token="
-    STYRING_URL_SWISS = "/repos/infra/gitstyring/contents/data/github/orgs/opentelekomcloud-docs-swiss/data.yaml?token="
+    BASE_DIR_UNIFIED = "/repos/infra/otc-metadata-rework/contents/"
     BASE_RTC_TABLE = "repo_title_category"
     BASE_DOC_TABLE = "doc_types"
 
-    main(BASE_DIR_REGULAR, BASE_RTC_TABLE, BASE_DOC_TABLE, STYRING_URL_REGULAR)
-    main(BASE_DIR_SWISS, f"{BASE_RTC_TABLE}_swiss", f"{BASE_DOC_TABLE}_swiss", STYRING_URL_SWISS)
+    main(BASE_DIR_UNIFIED, BASE_RTC_TABLE, BASE_DOC_TABLE)
+
     conn_csv = database.connect_to_db(env_vars.db_csv)
-    cur_csv = conn_csv.cursor()
-    add_obsolete_services(conn_csv, cur_csv, BASE_RTC_TABLE)
 
     conn_csv.commit()
     conn_csv.close()

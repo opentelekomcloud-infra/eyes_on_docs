@@ -1,17 +1,22 @@
 """
 This script contains data classes for code reusing
 """
+
 import logging
 import os
 import time
 
 import psycopg2
+import requests
+
+GITEA_API_ENDPOINT = os.getenv("BASE_GITEA_URL")
+session = requests.Session()
 
 
 class EnvVariables:
     required_env_vars = [
         "DB_HOST", "DB_PORT", "DB_CSV", "DB_USER", "DB_ORPH", "DB_ZUUL", "DB_PASSWORD", "GITEA_TOKEN", "GITHUB_TOKEN",
-        "GITHUB_FALLBACK_TOKEN"
+        "GITHUB_FALLBACK_TOKEN", "BASE_GITEA_URL"
     ]
 
     def __init__(self):
@@ -26,6 +31,7 @@ class EnvVariables:
         self.github_token = os.getenv("GITHUB_TOKEN")
         self.github_fallback_token = os.getenv("GITHUB_FALLBACK_TOKEN")
         self.api_key = os.getenv("OTC_BOT_API")
+        self.base_gitea_url = os.getenv("BASE_GITEA_URL")
         self.check_env_variables()
 
     def check_env_variables(self):
@@ -52,7 +58,7 @@ class Database:
                 password=self.db_password
             )
         except psycopg2.Error as e:
-            logging.error("Connecting to Postgres: an error occurred while trying to connect: %s", e)
+            logging.error("Connecting to Postgres: an error occurred while trying to connect to the database: %s", e)
             return None
 
 
