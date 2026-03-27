@@ -8,11 +8,10 @@ import requests
 
 from config import Database, EnvVariables, Timer, setup_logging
 
-gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
-
 env_vars = EnvVariables()
 database = Database(env_vars)
+BASE_GITEA_URL = env_vars.base_gitea_url
 
 
 def create_prs_table(conn, cur, table_name):
@@ -58,7 +57,7 @@ def get_pr_number(org, repo):
     pr_details = []
     while True:
         try:
-            repo_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls?state=open&page={page}",
+            repo_resp = session.get(f"{BASE_GITEA_URL}/repos/{org}/{repo}/pulls?state=open&page={page}",
                                     headers=headers)
             repo_resp.raise_for_status()
             pull_requests = json.loads(repo_resp.content.decode())
@@ -99,7 +98,7 @@ def process_pr_reviews(org, repo, pr_number, changes_tab, conn_csv, cur_csv):
     }
     reviews = []
     try:
-        reviews_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/reviews?token=",
+        reviews_resp = session.get(f"{BASE_GITEA_URL}/repos/{org}/{repo}/pulls/{pr_number}/reviews?token=",
                                    headers=headers)
         reviews_resp.raise_for_status()
         reviews = json.loads(reviews_resp.content.decode())
@@ -127,7 +126,7 @@ def get_last_commit(org, repo, pr_number, reviewer_login, last_review_date, chan
         "Authorization": f"token {env_vars.gitea_token}"
     }
     try:
-        commits_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/commits?token=",
+        commits_resp = session.get(f"{BASE_GITEA_URL}/repos/{org}/{repo}/pulls/{pr_number}/commits?token=",
                                    headers=headers)
         commits_resp.raise_for_status()
         commits = json.loads(commits_resp.content.decode())
@@ -155,7 +154,7 @@ def insert_data_postgres(org, repo, pr_number, conn, cur, activity_date, changes
         "Authorization": f"token {env_vars.gitea_token}"
     }
     try:
-        filtered_reviews_resp = session.get(f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/"
+        filtered_reviews_resp = session.get(f"{BASE_GITEA_URL}/repos/{org}/{repo}/pulls/{pr_number}/"
                                             f"reviews", headers=headers)
         filtered_reviews_resp.raise_for_status()
         filtered_reviews = json.loads(filtered_reviews_resp.content.decode())
@@ -198,7 +197,7 @@ def parent_pr_changes_check(cur, conn, org, changes_tab):
     for pr_number, repo in records:
         try:
             pr_resp = session.get(
-                f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}", headers=headers)
+                f"{BASE_GITEA_URL}/repos/{org}/{repo}/pulls/{pr_number}", headers=headers)
             pr_resp.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
@@ -230,7 +229,7 @@ def parent_pr_changes_check(cur, conn, org, changes_tab):
                     "Authorization": f"token {env_vars.gitea_token}"
                 }
                 parent_reviews_resp = session.get(
-                    f"{gitea_api_endpoint}/repos/{org}/{repo_name}/pulls/{parent_pr_number}/reviews",
+                    f"{BASE_GITEA_URL}/repos/{org}/{repo_name}/pulls/{parent_pr_number}/reviews",
                     headers=headers
                 )
                 parent_reviews_resp.raise_for_status()
