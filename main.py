@@ -25,7 +25,6 @@ def main():
     parser.add_argument('--eod12', action='store_true', help='Huawei files and lines count')
     parser.add_argument('--eod13', action='store_true', help='Missing child PRs')
 
-
     args = parser.parse_args()
 
     if args.eod1:
