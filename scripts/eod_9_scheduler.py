@@ -201,6 +201,27 @@ def check_files_lines(conn, squad_name, stream_name, topic_name):
                 send_zulip_notification(row, env_vars.api_key, stream_name, topic_name)
 
 
+def check_missing_child(conn, squad_name, stream_name, topic_name):
+    cur = conn.cursor(cursor_factory=DictCursor)
+    tables = [
+        ("missing_child_prs", "Public"),
+        ("missing_child_prs_swiss", "Hybrid")
+    ]
+
+    for table, zone in tables:
+        logging.info("Checking %s table for %s...", table, squad_name)
+
+        query = f"""SELECT *, '{zone}' as zone, 'missing_child' as type FROM {table}
+                        WHERE "Squad" = %s AND "If Child" = 'No';"""
+
+        cur.execute(query, (squad_name,))
+        results = cur.fetchall()
+
+        if results:
+            for row in results:
+                send_zulip_notification(row, env_vars.api_key, stream_name, topic_name)
+
+
 def send_zulip_notification(row, api_key, stream_name, topic_name):
     check_rate_limit()
 
@@ -301,6 +322,18 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
                   f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-servic" \
                   f"e.com/d/b04be79a-d0ec-49ff-aeac-a2eba053937c/files-and-lines-content?orgId=1&var-squad_filter=" \
                   f"{encoded_squad}var-zone={zone_table}\n\n---------------------------------------------------------"
+    elif row["type"] == "missing_child":
+        squad_name = row[3]
+        encoded_squad = quote(squad_name)
+        service_name = row[2]
+        zone = row[-2]
+        zone_table = "missing_child_prs" if zone == "Public" else "missing_child_prs_swiss"
+        pr_url = row[4]
+        message = f":harold:   **Missing Child PRs Alert**  :harold:\n\n This PR is missing its Child!\n\n " \
+                  f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-" \
+                  f"service.com/d/f6b71f27-3ee4-486e-81c9-78f2d9c31ac3/missing-child-prs?orgId=1&var-squad_filter=" \
+                  f"{encoded_squad}var-zone={zone_table}\n\n---------------------------------------------------------"
 
     result = client.send_message({
         "type": "stream",
@@ -332,6 +365,7 @@ def main():
         check_labels_comments(conn, squad_name, stream_name, topic_name)
         check_rst(conn, squad_name, stream_name, topic_name)
         check_files_lines(conn, squad_name, stream_name, topic_name)
+        check_missing_child(conn, squad_name, stream_name, topic_name)
     conn.close()
     conn_orph.close()
 
