@@ -268,7 +268,7 @@ def insert_prs(conn, cur, table_name, prs_info):
     try:
         for pr in prs_info:
             cur.execute(
-                f'''INSERT INTO {table_name} 
+                f'''INSERT INTO {table_name}
                 ("PR Number", "Service Name", "PR URL", "If Child", "Head SHA")
                 VALUES (%s, %s, %s, %s, %s);''',
                 (pr["pr_number"], pr["service_name"], pr["pr_url"],
