@@ -62,9 +62,9 @@ def get_open_prs(org, repo):
             open_prs.extend(prs_data)
             page += 1
 
-            logging.info(f"Fetched page {page - 1}, got {len(prs_data)} PRs")
+            logging.info("Fetched page %s, got %s PRs", page - 1, len(prs_data))
 
-        logging.info(f"Total open PRs found: {len(open_prs)}")
+        logging.info("Total open PRs found: %s", len(open_prs))
 
     except requests.exceptions.RequestException as e:
         logging.error("Error occurred while fetching open PRs: %s", e)
@@ -128,7 +128,7 @@ def check_required_files(org, repo, pr_number):
         return None
 
     except Exception as e:
-        logging.error(f"Error fetching files for PR #{pr_number}: {e}")
+        logging.error("Error fetching files for PR #%s: %s", pr_number, e)
         return None
 
 
@@ -140,7 +140,7 @@ def collect_prs_with_file_info(org, repo, open_prs):
         pr_url = pr.get("html_url")
         head_sha = pr.get("head", {}).get("sha")
 
-        logging.info(f"Checking PR #{pr_number} — files and timeline...")
+        logging.info("Checking PR #%s — files and timeline...", pr_number)
 
         service_name = None
         has_required_files = False
@@ -169,7 +169,7 @@ def collect_prs_with_file_info(org, repo, open_prs):
                         break
 
         except Exception as e:
-            logging.error(f"Error fetching files for PR #{pr_number}: {e}")
+            logging.error("Error fetching files for PR #%s: %s", pr_number, e)
 
         if has_required_files:
             has_child_timeline = has_child_pr(org, repo, pr_number)
@@ -185,11 +185,14 @@ def collect_prs_with_file_info(org, repo, open_prs):
         })
 
         logging.info(
-            f"PR #{pr_number}: files={'Yes' if has_required_files else 'No'}, "
-            f"timeline={'Yes' if has_child_timeline else 'No'} → If Child={'Yes' if has_child else 'No'}"
+            "PR #%s: files=%s, timeline=%s → If Child=%s",
+            pr_number,
+            "Yes" if has_required_files else "No",
+            "Yes" if has_child_timeline else "No",
+            "Yes" if has_child else "No"
         )
 
-    logging.info(f"Collected {len(prs_info)} PRs total")
+    logging.info("Collected %s PRs total", len(prs_info))
     return prs_info
 
 
@@ -220,22 +223,22 @@ def has_child_pr(org, repo, pr_number):
 
             referenced_number = int(m.group(1))
             if referenced_number == pr_number:
-                logging.info(f"Timeline: PR #{pr_number} has pull_ref confirming child creation.")
+                logging.info("Timeline: PR #%s has pull_ref confirming child creation.", pr_number)
                 return True
             else:
-                logging.info(f"Timeline: PR #{pr_number} has pull_ref but references PR #{referenced_number}.")
+                logging.info("Timeline: PR #%s has pull_ref but references PR #%s.", pr_number, referenced_number)
                 return False
 
         return False
 
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 404:
-            logging.info(f"Timeline not found for PR #{pr_number} (404).")
+            logging.info("Timeline not found for PR #%s (404).", pr_number)
             return False
-        logging.error(f"HTTP error when checking timeline for PR #{pr_number}: {e}")
+        logging.error("HTTP error when checking timeline for PR #%s: %s", pr_number, e)
         return False
     except Exception as e:
-        logging.error(f"Error checking timeline for PR #{pr_number}: {e}")
+        logging.error("Error checking timeline for PR #%s: %s", pr_number, e)
         return False
 
 
@@ -245,7 +248,7 @@ def update_child_status_from_timeline(conn, cur, org, repo, table_name):
     try:
         cur.execute(f'''SELECT "PR Number" FROM {table_name} WHERE "If Child" = 'No';''')
         prs_to_check = [row[0] for row in cur.fetchall()]
-        logging.info(f"Found {len(prs_to_check)} PRs to verify via timeline.")
+        logging.info("Found %s PRs to verify via timeline.", len(prs_to_check))
 
         for pr_number in prs_to_check:
             if has_child_pr(org, repo, pr_number):
@@ -256,12 +259,12 @@ def update_child_status_from_timeline(conn, cur, org, repo, table_name):
                     (pr_number,)
                 )
                 conn.commit()
-                logging.info(f"PR #{pr_number}: updated to Yes (child confirmed).")
+                logging.info("PR #%s: updated to Yes (child confirmed).", pr_number)
             else:
-                logging.info(f"PR #{pr_number}: still No (no valid pull_ref found).")
+                logging.info("PR #%s: still No (no valid pull_ref found).", pr_number)
 
     except Exception as e:
-        logging.error(f"Error during timeline check/update: {e}")
+        logging.error("Error during timeline check/update: %s", e)
 
 
 def insert_prs(conn, cur, table_name, prs_info):
@@ -275,7 +278,7 @@ def insert_prs(conn, cur, table_name, prs_info):
                  pr["if_child"], pr["head_sha"])
             )
         conn.commit()
-        logging.info("Inserted %d PRs into %s", len(prs_info), table_name)
+        logging.info("Inserted %s PRs into %s", len(prs_info), table_name)
     except psycopg2.Error as e:
         logging.error("Error inserting PRs: %s", e)
 
@@ -283,10 +286,13 @@ def insert_prs(conn, cur, table_name, prs_info):
 def update_squad_info(cur, conn, rtc_table, target_table):
     logging.info("Updating squad information...")
     try:
-        cur.execute(f"SELECT * FROM {target_table};")
+        cur.execute(f"SELECT id, \"Service Name\" FROM {target_table};")
         rows = cur.fetchall()
 
         for row in rows:
+            row_id = row[0]
+            service_name = row[1]
+
             cur.execute(
                 f"""UPDATE {target_table}
                     SET "Squad" = rtc."Squad",
@@ -294,7 +300,7 @@ def update_squad_info(cur, conn, rtc_table, target_table):
                     FROM {rtc_table} AS rtc
                     WHERE {target_table}."Service Name" = rtc."Service Type"
                     AND {target_table}.id = %s;""",
-                (row[0],)
+                (row_id,)
             )
 
         conn.commit()
@@ -315,11 +321,13 @@ def main(internal_org, rtc_table, missing_child_prs_table):
 
     create_missing_child_prs_table(conn_csv, cur_csv, missing_child_prs_table)
 
-    logging.info(f"Fetching open PRs from {internal_org}/{repo}...")
+    logging.info("Fetching open PRs from %s/%s...", internal_org, repo)
     open_prs = get_open_prs(internal_org, repo)
 
     if not open_prs:
         logging.warning("No open PRs found!")
+        cur_csv.close()
+        conn_csv.close()
         return
 
     logging.info("Collecting PRs and checking files...")
@@ -331,7 +339,7 @@ def main(internal_org, rtc_table, missing_child_prs_table):
 
     update_squad_info(cur_csv, conn_csv, rtc_table, missing_child_prs_table)
 
-    logging.info(f"Successfully completed processing for {internal_org}!")
+    logging.info("Successfully completed processing for %s!", internal_org)
 
     cur_csv.close()
     conn_csv.close()
@@ -356,12 +364,10 @@ def run():
     cur_csv.close()
     conn_csv.close()
 
-    done = False
-
     for env in environments:
         env_name = env[0]
-        internal_org = env[2]
         table_suffix = env[1]
+        internal_org = env[2]
 
         rtc_table = f"{BASE_RTC_TABLE}{table_suffix}"
         missing_child_table = f"{BASE_MISSING_CHILD_TABLE}{table_suffix}"
@@ -369,11 +375,14 @@ def run():
         logging.info("Processing environment: %s, organization: %s, table: %s",
                      env_name, internal_org, missing_child_table)
 
-        main(internal_org, rtc_table, missing_child_table)
-        done = True
+        try:
+            main(internal_org, rtc_table, missing_child_table)
+        except Exception as e:
+            logging.error("Error processing environment %s: %s", env_name, e)
+            logging.info("Continuing with next environment...")
+            continue
 
-    if done:
-        logging.info("All environments processed successfully!")
+    logging.info("All environments processed successfully!")
 
     timer.stop()
 
