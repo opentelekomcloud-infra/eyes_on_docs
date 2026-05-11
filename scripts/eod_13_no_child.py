@@ -6,11 +6,12 @@ import re
 
 from config import Database, EnvVariables, Timer, setup_logging
 
-gitea_api_endpoint = "https://gitea.eco.tsi-dev.otc-service.com/api/v1"
 session = requests.Session()
 
 env_vars = EnvVariables()
 database = Database(env_vars)
+
+gitea_api_endpoint = env_vars.base_gitea_url
 
 
 def create_missing_child_prs_table(conn, cur, missing_child_prs):
@@ -226,7 +227,7 @@ def has_child_pr(org, repo, pr_number):
                 logging.info("Timeline: PR #%s has pull_ref confirming child creation.", pr_number)
                 return True
             else:
-                logging.info("Timeline: PR #%s has pull_ref but references PR #%s.", pr_number, referenced_number)
+                logging.info("Timeline: PR #%s has pull_ref but #%s.", pr_number, referenced_number)
                 return False
 
         return False
@@ -291,7 +292,6 @@ def update_squad_info(cur, conn, rtc_table, target_table):
 
         for row in rows:
             row_id = row[0]
-            service_name = row[1]
 
             cur.execute(
                 f"""UPDATE {target_table}

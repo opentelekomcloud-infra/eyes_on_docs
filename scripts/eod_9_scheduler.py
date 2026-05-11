@@ -116,6 +116,26 @@ def check_outdated_docs(conn, squad_name, stream_name, topic_name):
                 send_zulip_notification(row, env_vars.api_key, stream_name, topic_name)
 
 
+def check_requested_changes(conn, squad_name, stream_name, topic_name):
+    results = []
+    cur = conn.cursor(cursor_factory=DictCursor)
+    tables = ["requested_changes", "requested_changes_swiss"]
+    for table in tables:
+        if table == "requested_changes":
+            logging.info("Checking %s table for %s...", table, squad_name)
+            query = f"""SELECT *, 'Public' as zone, 'req_changes' as type FROM {table} WHERE "Squad" = %s;"""
+            cur.execute(query, (squad_name,))
+            results = cur.fetchall()
+        elif table == "requested_changes_swiss":
+            logging.info("Checking %s table for %s...", table, squad_name)
+            query = f"""SELECT *, 'Hybrid' as zone, 'req_changes' as type FROM {table} WHERE "Squad" = %s;"""
+            cur.execute(query, (squad_name,))
+            results = cur.fetchall()
+        if results:
+            for row in results:
+                send_zulip_notification(row, env_vars.api_key, stream_name, topic_name)
+
+
 def check_labels_comments(conn, squad_name, stream_name, topic_name):
     results = []
     cur = conn.cursor(cursor_factory=DictCursor)
@@ -227,8 +247,11 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
 
     message = []
     current_date = datetime.now().strftime("%Y-%m-%d")
-    client = zulip.Client(email="eod-bot@zulip.tsi-vc.otc-service.com", api_key=api_key,
-                          site="https://zulip.tsi-vc.otc-service.com")
+    client = zulip.Client(
+        email=env_vars.email,
+        api_key=api_key,
+        site=env_vars.site
+    )
     if row["type"] == "doc":
         squad_name = row[3]
         encoded_squad = quote(squad_name)
@@ -258,9 +281,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
 
         message += f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
                    f"{current_date}\n\n**Commit URL:** {commit_url}\n**Dashboard URL:** " \
-                   f"https://dashboard.tsi-dev.otc-service.com/d/c67f0f4b-b31c-4433-b530-a18896470d49/last-docs-" \
-                   f"commit?orgId=1&var-squad_commit={encoded_squad}&var-doctype_commit=All&var-duration_commit=ASC&" \
-                   f"var-zone=last_update_commit\n\n---------------------------------------------------------"
+                   f"{env_vars.last_docs_commit}&var-squad_commit={encoded_squad}&var-doctype_commit=All&var-" \
+                   f"duration_commit=ASC&var-zone=last_update_commit\n\n---------------------------------------------" \
+                   f"------------"
     elif row["type"] == "issue":
         squad_name = row[3]
         encoded_squad = quote(squad_name)
@@ -270,9 +293,8 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         message = f":point_right:      **Unattended Issues Alert**      :point_left:\n\nYou have an issue which has " \
                   f"no assignees for more than 7 days\n\n**Squad name:** {squad_name}\n**Service name:** " \
                   f"{service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n**Issue URL** " \
-                  f"{issue_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service.com/d/I-YJAuBVk/open-issues" \
-                  f"-dashboard?orgId=1&var-squad_issues={encoded_squad}&var-env_issues=All&var-sort_duration=DESC&" \
-                  f"var-zone=open_issues\n\n---------------------------------------------------------"
+                  f"{issue_url}\n**Dashboard URL:** {env_vars.open_issues}&var-squad_issues={encoded_squad}&var-env" \
+                  f"_issues=All&var-sort_duration=DESC&var-zone=open_issues\n\n----------------------------------------"
     elif row["type"] == "orphan":
         squad_name = row[3]
         encoded_squad = quote(squad_name)
@@ -282,9 +304,21 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         orphan_url = row[4]
         message = f":boom:    **Orphaned PRs Alert**   :boom:\n\nYou have orphaned PR here!\n\n**Squad name:** " \
                   f"{squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n" \
-                  f"**Orphan URL:** {orphan_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service.com" \
-                  f"/d/4vLGLDB4z/open-prs-dashboard?orgId=1&var-squad_filter={encoded_squad}&var-env=Github&" \
-                  f"var-env=Gitea&var-zone={zone_table}\n\n---------------------------------------------------------"
+                  f"**Orphan URL:** {orphan_url}\n**Dashboard URL:** {env_vars.open_prs}&var-squad_filter=" \
+                  f"{encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n--------------------------" \
+                  f"-------------------------------"
+    elif row["type"] == "req_changes":
+        squad_name = row[2]
+        encoded_squad = quote(squad_name)
+        service_name = row[1]
+        zone = row[-2]
+        zone_table = "requested_changes" if zone == "Public" else "requested_changes_swiss"
+        pr_url = row[3]
+        message = f":boom:    **Requested Changes Notification**   :boom:\n\nPlease check requested changes timing!" \
+                  f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:**" \
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.open_prs}&var-squad_filter" \
+                  f"={encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n--------------------------" \
+                  f"-------------------------------"
     elif row["type"] == "analyzed":
         squad_name = row[3]
         encoded_squad = quote(squad_name)
@@ -294,9 +328,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         pr_url = row[4]
         message = f":ghost:   **Huawei PRs Alert**  :ghost:\n\nPlease check label and comments here!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-service."\
-                  f"com/d/cee8f476-5c2a-4b88-b38d-518c34bb3b17/huawei%3a-analyzed-and-labeled?orgId=1&var-squad_filte"\
-                  f"r={encoded_squad}&var-zone={zone_table}\n\n--------------------------------------------------------"
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.huawei_analysed_labeled}&" \
+                  f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
+                  f"-----------------"
     elif row["type"] == "rst":
         squad_name = row[3]
         encoded_squad = quote(squad_name)
@@ -306,9 +340,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         pr_url = row[4]
         message = f":ghost:   **Huawei PRs Alert**  :ghost:\n\nPlease check label and comments here!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-servi" \
-                  f"ce.com/d/c80c0d2f-703e-4906-8678-43f5956e65b2/huawei-to-otc%3a-rst?orgId=1&var-squad_filter=" \
-                  f"{encoded_squad}&var-zone={zone_table}\n\n---------------------------------------------------------"
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.huawei_to_otc_rst}&" \
+                  f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
+                  f"------------------"
     elif row["type"] == "files_lines":
         squad_name = row[3]
         encoded_squad = quote(squad_name)
@@ -319,9 +353,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         message = f":holyhandgrenade:   **Reviewing PRs content Alert**  :holyhandgrenade:\n\n Time to check content " \
                   f"in this PR!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-servic" \
-                  f"e.com/d/b04be79a-d0ec-49ff-aeac-a2eba053937c/files-and-lines-content?orgId=1&var-squad_filter=" \
-                  f"{encoded_squad}var-zone={zone_table}\n\n---------------------------------------------------------"
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.files_lines}&" \
+                  f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
+                  f"------------------"
     elif row["type"] == "missing_child":
         squad_name = row[3]
         encoded_squad = quote(squad_name)
@@ -331,9 +365,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         pr_url = row[4]
         message = f":harold:   **Missing Child PRs Alert**  :harold:\n\n This PR is missing its Child!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** https://dashboard.tsi-dev.otc-" \
-                  f"service.com/d/f6b71f27-3ee4-486e-81c9-78f2d9c31ac3/missing-child-prs?orgId=1&var-squad_filter=" \
-                  f"{encoded_squad}var-zone={zone_table}\n\n---------------------------------------------------------"
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.missing_child_prs}&" \
+                  f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
+                  f"------------------"
 
     result = client.send_message({
         "type": "stream",
@@ -362,6 +396,7 @@ def main():
         check_orphans(conn_orph, squad_name, stream_name, topic_name)
         check_open_issues(conn, squad_name, stream_name, topic_name)
         check_outdated_docs(conn, squad_name, stream_name, topic_name)
+        check_requested_changes(conn, squad_name, stream_name, topic_name)
         check_labels_comments(conn, squad_name, stream_name, topic_name)
         check_rst(conn, squad_name, stream_name, topic_name)
         check_files_lines(conn, squad_name, stream_name, topic_name)
