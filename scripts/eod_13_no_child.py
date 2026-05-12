@@ -73,66 +73,6 @@ def get_open_prs(org, repo):
     return open_prs
 
 
-def check_pr_status(org, repo, head_sha):
-    headers = {
-        "Authorization": f"token {env_vars.gitea_token}"
-    }
-
-    try:
-        status_resp = session.get(
-            f"{gitea_api_endpoint}/repos/{org}/{repo}/commits/{head_sha}/status",
-            headers=headers
-        )
-        status_resp.raise_for_status()
-        status_data = status_resp.json()
-
-        return status_data.get("state", "unknown")
-
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 404:
-            logging.info("No status found for commit %s (404 error)", head_sha)
-            return "no_status"
-        else:
-            logging.error("HTTP error checking status for commit %s: %s", head_sha, e)
-            return "error"
-    except requests.exceptions.RequestException as e:
-        logging.error("Error checking status for commit %s: %s", head_sha, e)
-        return "error"
-    except json.JSONDecodeError as e:
-        logging.error("Error decoding JSON for commit %s: %s", head_sha, e)
-        return "error"
-
-
-def check_required_files(org, repo, pr_number):
-    headers = {"Authorization": f"token {env_vars.gitea_token}"}
-    try:
-        resp = session.get(
-            f"{gitea_api_endpoint}/repos/{org}/{repo}/pulls/{pr_number}/files",
-            headers=headers,
-            timeout=60,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-
-        filenames = [f["filename"] for f in data]
-
-        has_all_meta = any("ALL_META.TXT.json" in f for f in filenames)
-        has_class = any("CLASS.TXT.json" in f for f in filenames)
-        if not (has_all_meta and has_class):
-            return None
-
-        for name in filenames:
-            if name.startswith("docs/"):
-                parts = name.split("/")
-                if len(parts) > 2:
-                    return parts[1]
-        return None
-
-    except Exception as e:
-        logging.error("Error fetching files for PR #%s: %s", pr_number, e)
-        return None
-
-
 def collect_prs_with_file_info(org, repo, open_prs):
     prs_info = []
 
@@ -227,7 +167,7 @@ def has_child_pr(org, repo, pr_number):
                 logging.info("Timeline: PR #%s has pull_ref confirming child creation.", pr_number)
                 return True
             else:
-                logging.info("Timeline: PR #%s has pull_ref but #%s.", pr_number, referenced_number)
+                logging.info("Timeline: PR #%s has pull_ref but references PR #%s.", pr_number, referenced_number)
                 return False
 
         return False
@@ -292,6 +232,7 @@ def update_squad_info(cur, conn, rtc_table, target_table):
 
         for row in rows:
             row_id = row[0]
+            service_name = row[1]
 
             cur.execute(
                 f"""UPDATE {target_table}

@@ -253,12 +253,12 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         site=env_vars.site
     )
     if row["type"] == "doc":
-        squad_name = row[3]
+        squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
-        service_name = row[1]
-        zone = row[-2]
-        commit_url = row[6]
-        days_passed = int(row[5])
+        service_name = row["Service Name"]
+        zone = row["zone"]
+        commit_url = row["Commit URL"]
+        days_passed = int(row["Days passed"])
         if days_passed == 344:
             weeks_to_threshold = 3
             message = f":notifications:    **Outdated Documents Alert**    :notifications:\n\nThis document's last " \
@@ -285,71 +285,71 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
                    f"duration_commit=ASC&var-zone=last_update_commit\n\n---------------------------------------------" \
                    f"------------"
     elif row["type"] == "issue":
-        squad_name = row[3]
+        squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
-        service_name = row[2]
-        zone = row[-2]
-        issue_url = row[5]
+        service_name = row["Service Name"]
+        zone = row["zone"]
+        issue_url = row["Issue URL"]
         message = f":point_right:      **Unattended Issues Alert**      :point_left:\n\nYou have an issue which has " \
                   f"no assignees for more than 7 days\n\n**Squad name:** {squad_name}\n**Service name:** " \
                   f"{service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n**Issue URL** " \
                   f"{issue_url}\n**Dashboard URL:** {env_vars.open_issues}&var-squad_issues={encoded_squad}&var-env" \
                   f"_issues=All&var-sort_duration=DESC&var-zone=open_issues\n\n----------------------------------------"
     elif row["type"] == "orphan":
-        squad_name = row[3]
+        squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
-        service_name = row[2]
-        zone = row[-2]
+        service_name = row["Service Name"]
+        zone = row["zone"]
         zone_table = "open_prs" if zone == "Public" else "open_prs_swiss"
-        orphan_url = row[4]
+        orphan_url = row["Auto PR URL"]
         message = f":boom:    **Orphaned PRs Alert**   :boom:\n\nYou have orphaned PR here!\n\n**Squad name:** " \
                   f"{squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n" \
                   f"**Orphan URL:** {orphan_url}\n**Dashboard URL:** {env_vars.open_prs}&var-squad_filter=" \
                   f"{encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n--------------------------" \
                   f"-------------------------------"
     elif row["type"] == "req_changes":
-        squad_name = row[2]
+        squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
-        service_name = row[1]
-        zone = row[-2]
+        service_name = row["Service Name"]
+        zone = row["zone"]
         zone_table = "requested_changes" if zone == "Public" else "requested_changes_swiss"
-        pr_url = row[3]
-        message = f":boom:    **Requested Changes Notification**   :boom:\n\nPlease check requested changes timing!" \
+        pr_url = row["PR URL"]
+        message = f":fixing:   **Requested Changes Notification**  :fixing:\n\nPlease check requested changes timing!" \
                   f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:**" \
                   f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.open_prs}&var-squad_filter" \
                   f"={encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n--------------------------" \
                   f"-------------------------------"
     elif row["type"] == "analyzed":
-        squad_name = row[3]
+        squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
-        service_name = row[2]
-        zone = row[-2]
+        service_name = row["Service Name"]
+        zone = row["zone"]
         zone_table = "huawei_label" if zone == "Public" else "huawei_label_swiss"
-        pr_url = row[4]
+        pr_url = row["PR URL"]
         message = f":ghost:   **Huawei PRs Alert**  :ghost:\n\nPlease check label and comments here!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
                   f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.huawei_analysed_labeled}&" \
                   f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
                   f"-----------------"
     elif row["type"] == "rst":
-        squad_name = row[3]
+        squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
-        service_name = row[2]
-        zone = row[-2]
+        service_name = row["Service Name"]
+        zone = row["zone"]
         zone_table = "huawei_to_otc" if zone == "Public" else "huawei_to_otc_swiss"
-        pr_url = row[4]
+        pr_url = row["PR URL"]
         message = f":ghost:   **Huawei PRs Alert**  :ghost:\n\nPlease check label and comments here!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
                   f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.huawei_to_otc_rst}&" \
                   f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
                   f"------------------"
     elif row["type"] == "files_lines":
-        squad_name = row[3]
+        squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
-        service_name = row[2]
-        zone = row[-2]
+        service_name = row["Service Name"]
+        zone = row["zone"]
         zone_table = "huawei_files_lines" if zone == "Public" else "huawei_files_lines_swiss"
-        pr_url = row[4]
+        pr_url = row["PR URL"]
         message = f":holyhandgrenade:   **Reviewing PRs content Alert**  :holyhandgrenade:\n\n Time to check content " \
                   f"in this PR!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
@@ -357,12 +357,12 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
                   f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
                   f"------------------"
     elif row["type"] == "missing_child":
-        squad_name = row[3]
+        squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
-        service_name = row[2]
-        zone = row[-2]
+        service_name = row["Service Name"]
+        zone = row["zone"]
         zone_table = "missing_child_prs" if zone == "Public" else "missing_child_prs_swiss"
-        pr_url = row[4]
+        pr_url = row["PR URL"]
         message = f":harold:   **Missing Child PRs Alert**  :harold:\n\n This PR is missing its Child!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
                   f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.missing_child_prs}&" \
