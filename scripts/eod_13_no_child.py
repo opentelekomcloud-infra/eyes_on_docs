@@ -232,7 +232,6 @@ def update_squad_info(cur, conn, rtc_table, target_table):
 
         for row in rows:
             row_id = row[0]
-            service_name = row[1]
 
             cur.execute(
                 f"""UPDATE {target_table}
