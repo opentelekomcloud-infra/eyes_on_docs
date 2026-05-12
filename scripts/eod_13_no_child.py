@@ -1,4 +1,3 @@
-import json
 import logging
 import psycopg2
 import requests
