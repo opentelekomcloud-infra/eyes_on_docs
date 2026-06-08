@@ -61,12 +61,12 @@ def check_orphans(conn_orph, squad_name, stream_name, topic_name):
     for table in tables:
         if table == "open_prs":
             logging.info("Looking for orphaned PRs for %s in %s...", squad_name, table)
-            query = f"""SELECT *, 'Public' as zone, 'orphan' as type FROM {table} WHERE "Squad" = '{squad_name}';"""
+            query = f"""SELECT *, 'Public' as zone, 'orphan' as type FROM {table} WHERE "Squad" = %s;"""
             cur_orph.execute(query, (squad_name,))
             results = cur_orph.fetchall()
         elif table == "open_prs_swiss":
             logging.info("Looking for orphaned PRs for %s in %s...", squad_name, table)
-            query = f"""SELECT *, 'Hybrid' as zone, 'orphan' as type FROM {table} WHERE "Squad" = '{squad_name}';"""
+            query = f"""SELECT *, 'Hybrid' as zone, 'orphan' as type FROM {table} WHERE "Squad" = %s;"""
             cur_orph.execute(query, (squad_name,))
             results = cur_orph.fetchall()
         if results:
@@ -81,13 +81,13 @@ def check_open_issues(conn, squad_name, stream_name, topic_name):
     for table in tables:
         if table == "open_issues":
             logging.info("Checking %s for %s", table, squad_name)
-            query = f"""SELECT *, 'Public' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND
+            query = f"""SELECT *, 'Public' as zone, 'issue' as type FROM {table} WHERE "Squad" = %s AND
              "Environment" = 'Github' AND "Assignees" = '' AND "Duration" > '7' ;"""
             cur.execute(query, (squad_name,))
             results = cur.fetchall()
         elif table == "open_issues_swiss":
             logging.info("Checking %s for %s", table, squad_name)
-            query = f"""SELECT *, 'Hybrid' as zone, 'issue' as type FROM {table} WHERE "Squad" = '{squad_name}' AND
+            query = f"""SELECT *, 'Hybrid' as zone, 'issue' as type FROM {table} WHERE "Squad" = %s AND
              "Environment" = 'Github' AND "Assignees" = '' AND "Duration" > '7' ;"""
             cur.execute(query, (squad_name,))
             results = cur.fetchall()
@@ -316,9 +316,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         pr_url = row["PR URL"]
         message = f":fixing:   **Requested Changes Notification**  :fixing:\n\nPlease check requested changes timing!" \
                   f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:**" \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.open_prs}&var-squad_filter" \
-                  f"={encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n--------------------------" \
-                  f"-------------------------------"
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.requested_changes}&var-" \
+                  f"squad_filter={encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n--------------" \
+                  f"-------------------------------------------"
     elif row["type"] == "analyzed":
         squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
@@ -328,7 +328,7 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         pr_url = row["PR URL"]
         message = f":ghost:   **Huawei PRs Alert**  :ghost:\n\nPlease check label and comments here!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.huawei_analysed_labeled}&" \
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.vendor_analysed_labeled}&" \
                   f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
                   f"-----------------"
     elif row["type"] == "rst":
@@ -340,7 +340,7 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         pr_url = row["PR URL"]
         message = f":ghost:   **Huawei PRs Alert**  :ghost:\n\nPlease check label and comments here!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.huawei_to_otc_rst}&" \
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.vendor_to_otc_rst}&" \
                   f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
                   f"------------------"
     elif row["type"] == "files_lines":
