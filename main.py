@@ -6,7 +6,7 @@ import argparse
 
 from scripts import (eod_1_otc_services_dict, eod_2_gitea_info, eod_3_github_info, eod_4_failed_zuul, eod_5_open_issues,
                      eod_6_last_commit_info, eod_7_request_changes, eod_8_ecosystem_issues, eod_9_scheduler,
-                     eod_10_huawei, eod_11_huawei_to_otc, eod_12_huawei_files_lines)
+                     eod_10_huawei, eod_11_huawei_to_otc, eod_12_huawei_files_lines, eod_13_no_child)
 
 
 def main():
@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--eod10', action='store_true', help='Huawei')
     parser.add_argument('--eod11', action='store_true', help='Huawei to OTC')
     parser.add_argument('--eod12', action='store_true', help='Huawei files and lines count')
+    parser.add_argument('--eod13', action='store_true', help='Missing child PRs')
 
     args = parser.parse_args()
 
@@ -50,6 +51,8 @@ def main():
         eod_11_huawei_to_otc.run()
     if args.eod12:
         eod_12_huawei_files_lines.run()
+    if args.eod13:
+        eod_13_no_child.run()
 
 
 if __name__ == "__main__":
