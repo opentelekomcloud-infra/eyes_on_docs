@@ -20,6 +20,7 @@ Postgres database names, table names, Gitea & Github organization names and acce
 10) **eod-10-huawei.py** this script gather info about PRs which doesn't have reviewrs from Huawei side for more than 3 days
 11) **eod-11-huawei-to-otc.py** script for gather info about PRs which doesn't have reviewer from OTC side for more than 3 days
 12) **eod-12-huawei-files-lines.py** this script groups PRs based on files or lines of code count
+13) **eod_13_no_child.py** this script checks whether child PR of doc-export PR is there
 
 Notification schedule
 ---------------------
