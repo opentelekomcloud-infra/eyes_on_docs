@@ -4,9 +4,6 @@ on:
   push:
     tags:
       - '*'
-    branches:
-      - test_change
-      - YustinaKvr-patch-1
   release:
     types: [published]
 
