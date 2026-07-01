@@ -43,7 +43,7 @@ jobs:
         with:
           registry: swr.eu-de.otc.t-systems.com
           username: ${{ secrets.SWR_USERNAME }}
-          password: ${{ secrets.SWR_ROBOT_TOKEN }}
+          password: ${{ secrets.SWR_PASSWORD }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
