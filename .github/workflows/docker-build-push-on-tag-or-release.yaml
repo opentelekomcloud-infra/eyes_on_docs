@@ -11,6 +11,9 @@ env:
   ORG: opentelekomcloud
   PROJECT: eyes_on_docs
 
+permissions:
+  contents: read
+
 jobs:
   push_if_tag:
     runs-on: ubuntu-latest
