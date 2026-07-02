@@ -30,7 +30,7 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          "swr.eu-de.otc.t-systems.com/${{ env.ORG }}/${{ env.PROJECT }}"
+          "${{ secrets.REGISTRY }}/${{ env.ORG }}/${{ env.PROJECT }}"
         tags: |
           type=schedule
           type=ref,event=branch
@@ -67,7 +67,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            "swr.eu-de.otc.t-systems.com/${{ env.ORG }}/${{ env.PROJECT }}"
+            "${{ secrets.REGISTRY }}/${{ env.ORG }}/${{ env.PROJECT }}"
           tags: |
             type=schedule
             type=ref,event=branch
@@ -93,7 +93,7 @@ jobs:
       - name: Login to Container Registry
         uses: docker/login-action@v3
         with:
-          registry: swr.eu-de.otc.t-systems.com
+          registry: ${{ secrets.REGISTRY }}
           username: eu-de@${{ secrets.SWR_AK }}
           password: ${{ steps.swr_key.outputs.login_key }}
 
