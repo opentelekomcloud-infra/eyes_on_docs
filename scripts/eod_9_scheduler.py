@@ -3,6 +3,7 @@ This script sends Zulip messages to corresponding squads via Zulip bot, based on
 """
 
 import logging
+import os
 import time
 from datetime import datetime
 from urllib.parse import quote
@@ -15,8 +16,11 @@ from config import Database, EnvVariables, Timer, setup_logging
 env_vars = EnvVariables()
 database = Database(env_vars)
 
-# Zulip stream and topic mapping for each squad
-squad_streams = {
+# Zulip stream and topic mapping for each squad, for different envs
+PREPROD_STREAM = os.getenv('ZULIP_PREPROD_STREAM', '4grafana')
+PREPROD_TOPIC = os.getenv('ZULIP_PREPROD_TOPIC', 'testing')
+
+PROD_STREAMS = {
     "Dashboard Squad": {"stream": "Dashboard Squad", "topic": "Orphaned PR's"},
     "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
     "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
@@ -29,6 +33,14 @@ squad_streams = {
     "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"},
     "eco": {"stream": "ecosystem", "topic": "Eyes-on-Docs alerts"}
 }
+
+if os.getenv('ZULIP_ENV') == 'preprod':
+    squad_streams = {
+        squad: {"stream": PREPROD_STREAM, "topic": PREPROD_TOPIC}
+        for squad in PROD_STREAMS
+    }
+else:
+    squad_streams = PROD_STREAMS
 
 # Rate limiting vars
 MESSAGE_LIMIT = 190
