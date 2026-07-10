@@ -3,7 +3,6 @@ This script sends Zulip messages to corresponding squads via Zulip bot, based on
 """
 
 import logging
-import os
 import time
 from datetime import datetime
 from urllib.parse import quote
@@ -30,6 +29,7 @@ PROD_STREAMS = {
     "eco": {"stream": "ecosystem", "topic": "Eyes-on-Docs alerts"}
 }
 
+
 def build_squad_streams(env):
     if (env.zulip_env or "").strip().lower() == "preprod":
         return {
@@ -38,7 +38,9 @@ def build_squad_streams(env):
         }
     return PROD_STREAMS
 
+
 squad_streams = build_squad_streams(env_vars)
+
 
 # Rate limiting vars
 MESSAGE_LIMIT = 190
