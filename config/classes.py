@@ -44,6 +44,9 @@ class EnvVariables:
         self.vendor_to_otc_rst = os.getenv("VENDOR_TO_OTC_RST_URL")
         self.files_lines = os.getenv("FILES_LINES_URL")
         self.missing_child_prs = os.getenv("MISSING_CHILD_PRS_URL")
+        self.zulip_env = os.getenv("ZULIP_ENV")
+        self.zulip_preprod_stream = os.getenv("ZULIP_PREPROD_STREAM")
+        self.zulip_preprod_topic = os.getenv("ZULIP_PREPROD_TOPIC")
         self.check_env_variables()
 
     def check_env_variables(self):

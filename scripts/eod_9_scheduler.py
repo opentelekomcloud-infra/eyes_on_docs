@@ -15,8 +15,7 @@ from config import Database, EnvVariables, Timer, setup_logging
 env_vars = EnvVariables()
 database = Database(env_vars)
 
-# Zulip stream and topic mapping for each squad
-squad_streams = {
+PROD_STREAMS = {
     "Dashboard Squad": {"stream": "Dashboard Squad", "topic": "Orphaned PR's"},
     "Database Squad": {"stream": "Database Squad", "topic": "Doc alerts"},
     "Big Data and AI Squad": {"stream": "bigdata & ai", "topic": "helpcenter_alerts"},
@@ -29,6 +28,19 @@ squad_streams = {
     "Network Squad": {"stream": "network", "topic": "Alerts_HelpCenter"},
     "eco": {"stream": "ecosystem", "topic": "Eyes-on-Docs alerts"}
 }
+
+
+def build_squad_streams(env):
+    if (env.zulip_env or "").strip().lower() == "preprod":
+        return {
+            squad: {"stream": env.zulip_preprod_stream, "topic": env.zulip_preprod_topic}
+            for squad in PROD_STREAMS
+        }
+    return PROD_STREAMS
+
+
+squad_streams = build_squad_streams(env_vars)
+
 
 # Rate limiting vars
 MESSAGE_LIMIT = 190
