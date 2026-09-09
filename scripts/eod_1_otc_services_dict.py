@@ -169,7 +169,11 @@ def get_docs_info(base_dir, doc_dir):
 def get_cloud_environments_info(base_dir):
     cloud_env_dir = f"{base_dir}otc_metadata/data/cloud_environments"
 
-    response = requests.get(f"{BASE_GITEA_URL}{cloud_env_dir}", timeout=10)
+    headers = {
+        "Authorization": f"token {env_vars.gitea_token}"
+    }
+
+    response = requests.get(f"{BASE_GITEA_URL}{cloud_env_dir}", headers=headers, timeout=10)
     response.raise_for_status()
     all_files = [item['path'] for item in response.json() if item['type'] == 'file']
 
@@ -177,7 +181,7 @@ def get_cloud_environments_info(base_dir):
 
     for file_path in all_files:
         if file_path.endswith('.yaml'):
-            response = requests.get(f"{BASE_GITEA_URL}{base_dir}{file_path}", timeout=10)
+            response = requests.get(f"{BASE_GITEA_URL}{base_dir}{file_path}", headers=headers, timeout=10)
             response.raise_for_status()
 
             file_content_base64 = response.json()['content']
