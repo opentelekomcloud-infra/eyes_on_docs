@@ -88,6 +88,14 @@ jobs:
           echo "SWR_PASSWORD set: ${{ secrets.SWR_PASSWORD != '' }}"
           
 
+      - name: check swr creds shape
+        run: |
+          echo "SWR_URL set: ${{ secrets.SWR_URL != '' }}"
+          echo "SWR_USERNAME set: ${{ secrets.SWR_USERNAME != '' }}"
+          echo "SWR_PASSWORD set: ${{ secrets.SWR_PASSWORD != '' }}"
+          echo "username has @: ${{ contains(secrets.SWR_USERNAME, '@') }}"
+
+
       - name: Login to SWR Registry
         uses: docker/login-action@v3
         with:
