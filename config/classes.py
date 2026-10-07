@@ -35,6 +35,7 @@ class EnvVariables:
         self.email = os.getenv("ZULIP_EMAIL")
         self.site = os.getenv("ZULIP_SITE")
         # Dashboards URLs
+        self.base_grafana_url = os.getenv("BASE_GRAFANA_URL")
         self.open_prs = os.getenv("OPEN_PRS_URL")
         self.open_issues = os.getenv("OPEN_ISSUES_URL")
         self.last_docs_commit = os.getenv("LAST_DOCS_COMMIT_URL")

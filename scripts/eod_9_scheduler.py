@@ -292,7 +292,7 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
             return
 
         message += f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                   f"{current_date}\n\n**Commit URL:** {commit_url}\n**Dashboard URL:** " \
+                   f"{current_date}\n\n**Commit URL:** {commit_url}\n**Dashboard URL:** {env_vars.base_grafana_url}" \
                    f"{env_vars.last_docs_commit}&var-squad_commit={encoded_squad}&var-doctype_commit=All&var-" \
                    f"duration_commit=ASC&var-zone=last_update_commit\n\n---------------------------------------------" \
                    f"------------"
@@ -304,9 +304,10 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         issue_url = row["Issue URL"]
         message = f":point_right:      **Unattended Issues Alert**      :point_left:\n\nYou have an issue which has " \
                   f"no assignees for more than 7 days\n\n**Squad name:** {squad_name}\n**Service name:** " \
-                  f"{service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n**Issue URL** " \
-                  f"{issue_url}\n**Dashboard URL:** {env_vars.open_issues}&var-squad_issues={encoded_squad}&var-env" \
-                  f"_issues=All&var-sort_duration=DESC&var-zone=open_issues\n\n----------------------------------------"
+                  f"{service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n**Issue URL:** " \
+                  f"{issue_url}\n**Dashboard URL:** {env_vars.base_grafana_url}{env_vars.open_issues}&var-" \
+                  f"squad_issues={encoded_squad}&var-env_issues=All&var-sort_duration=DESC&var-zone=open_issues\n\n" \
+                  f"----------------------------------------"
     elif row["type"] == "orphan":
         squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
@@ -316,9 +317,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         orphan_url = row["Auto PR URL"]
         message = f":boom:    **Orphaned PRs Alert**   :boom:\n\nYou have orphaned PR here!\n\n**Squad name:** " \
                   f"{squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** {current_date}\n\n" \
-                  f"**Orphan URL:** {orphan_url}\n**Dashboard URL:** {env_vars.open_prs}&var-squad_filter=" \
-                  f"{encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n--------------------------" \
-                  f"-------------------------------"
+                  f"**Orphan URL:** {orphan_url}\n**Dashboard URL:** {env_vars.base_grafana_url}{env_vars.open_prs}&" \
+                  f"var-squad_filter={encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n" \
+                  f"---------------------------------------------------------"
     elif row["type"] == "req_changes":
         squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
@@ -327,10 +328,10 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         zone_table = "requested_changes" if zone == "Public" else "requested_changes_swiss"
         pr_url = row["PR URL"]
         message = f":fixing:   **Requested Changes Notification**  :fixing:\n\nPlease check requested changes timing!" \
-                  f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:**" \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.requested_changes}&var-" \
-                  f"squad_filter={encoded_squad}&var-env=Github&var-env=Gitea&var-zone={zone_table}\n\n--------------" \
-                  f"-------------------------------------------"
+                  f"\n\n**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.base_grafana_url}" \
+                  f"{env_vars.requested_changes}&var-squad_filter={encoded_squad}&var-env=Github&var-env=Gitea&" \
+                  f"var-zone={zone_table}\n\n---------------------------------------------------------"
     elif row["type"] == "analyzed":
         squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
@@ -338,11 +339,11 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         zone = row["zone"]
         zone_table = "huawei_label" if zone == "Public" else "huawei_label_swiss"
         pr_url = row["PR URL"]
-        message = f":ghost:   **Huawei PRs Alert**  :ghost:\n\nPlease check label and comments here!\n\n " \
+        message = f":ghost:   **Vendor PRs Alert**  :ghost:\n\nPlease check label and comments here!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.vendor_analysed_labeled}&" \
-                  f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
-                  f"-----------------"
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.base_grafana_url}" \
+                  f"{env_vars.vendor_analysed_labeled}&var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n" \
+                  f"--------------------------------------------------------"
     elif row["type"] == "rst":
         squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
@@ -350,11 +351,11 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         zone = row["zone"]
         zone_table = "huawei_to_otc" if zone == "Public" else "huawei_to_otc_swiss"
         pr_url = row["PR URL"]
-        message = f":ghost:   **Huawei PRs Alert**  :ghost:\n\nPlease check label and comments here!\n\n " \
+        message = f":ghost:   **Vendor RST Alert**  :ghost:\n\nPlease check whether RST exists!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.vendor_to_otc_rst}&" \
-                  f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
-                  f"------------------"
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.base_grafana_url}" \
+                  f"{env_vars.vendor_to_otc_rst}&var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n" \
+                  f"---------------------------------------------------------"
     elif row["type"] == "files_lines":
         squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
@@ -365,9 +366,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         message = f":holyhandgrenade:   **Reviewing PRs content Alert**  :holyhandgrenade:\n\n Time to check content " \
                   f"in this PR!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.files_lines}&" \
-                  f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
-                  f"------------------"
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.base_grafana_url}" \
+                  f"{env_vars.files_lines}&var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n" \
+                  f"---------------------------------------------------------"
     elif row["type"] == "missing_child":
         squad_name = row["Squad"]
         encoded_squad = quote(squad_name)
@@ -377,9 +378,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
         pr_url = row["PR URL"]
         message = f":harold:   **Missing Child PRs Alert**  :harold:\n\n This PR is missing its Child!\n\n " \
                   f"**Squad name:** {squad_name}\n**Service name:** {service_name}\n**Zone:** {zone}\n**Date:** " \
-                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.missing_child_prs}&" \
-                  f"var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n---------------------------------------" \
-                  f"------------------"
+                  f"{current_date}\n\n **PR URL:** {pr_url}\n**Dashboard URL:** {env_vars.base_grafana_url}" \
+                  f"{env_vars.missing_child_prs}&var-squad_filter={encoded_squad}&var-zone={zone_table}\n\n" \
+                  f"---------------------------------------------------------"
 
     result = client.send_message({
         "type": "stream",
@@ -393,9 +394,9 @@ def send_zulip_notification(row, api_key, stream_name, topic_name):
     # logging.info(f"Message counter: {message_counter}/190")
 
     if result["result"] == "success":
-        logging.info("Notification sent successfully for %s", row[-1])
+        logging.info("Notification sent successfully for %s", row["type"])
     else:
-        logging.error("Failed to send notification for %s: %s", row[-1], result['msg'])
+        logging.error("Failed to send notification for %s: %s", row["type"], result['msg'])
 
 
 def main():
